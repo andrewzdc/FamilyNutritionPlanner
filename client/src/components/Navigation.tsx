@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { useAuth } from "@/hooks/useAuth";
+import { useUser } from "@/contexts/UserContext";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -23,7 +23,7 @@ import {
 
 export default function Navigation() {
   const [location] = useLocation();
-  const { user } = useAuth();
+  const { user } = useUser();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const navItems = [
@@ -47,9 +47,11 @@ export default function Navigation() {
         <div className="flex justify-between items-center py-4">
           {/* Logo */}
           <div className="flex items-center space-x-4">
-            <Link href="/" className="flex items-center space-x-2">
-              <Utensils className="text-primary text-2xl" />
-              <h1 className="text-2xl font-bold text-gray-900">FamilyEats</h1>
+            <Link href="/">
+              <div className="flex items-center space-x-2 cursor-pointer">
+                <Utensils className="text-primary text-2xl" />
+                <h1 className="text-2xl font-bold text-gray-900">FamilyEats</h1>
+              </div>
             </Link>
           </div>
           
@@ -57,13 +59,13 @@ export default function Navigation() {
           <nav className="hidden md:flex items-center space-x-8">
             {navItems.map((item) => (
               <Link key={item.path} href={item.path}>
-                <a className={`transition-colors ${
+                <div className={`transition-colors cursor-pointer ${
                   isActive(item.path)
                     ? "text-primary font-medium border-b-2 border-primary pb-1"
                     : "text-gray-600 hover:text-primary"
                 }`}>
                   {item.label}
-                </a>
+                </div>
               </Link>
             ))}
           </nav>
@@ -99,11 +101,8 @@ export default function Navigation() {
               <DropdownMenuContent align="end">
                 <DropdownMenuItem>Profile Settings</DropdownMenuItem>
                 <DropdownMenuItem>Family Settings</DropdownMenuItem>
-                <DropdownMenuItem 
-                  onClick={() => window.location.href = '/api/logout'}
-                  className="text-red-600"
-                >
-                  Sign Out
+                <DropdownMenuItem className="text-red-600">
+                  Demo Mode
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -126,8 +125,8 @@ export default function Navigation() {
             <nav className="space-y-2">
               {navItems.map((item) => (
                 <Link key={item.path} href={item.path}>
-                  <a 
-                    className={`flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors ${
+                  <div 
+                    className={`flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors cursor-pointer ${
                       isActive(item.path)
                         ? "bg-primary/10 text-primary"
                         : "text-gray-600 hover:bg-gray-100"
@@ -136,7 +135,7 @@ export default function Navigation() {
                   >
                     <item.icon className="w-5 h-5" />
                     <span>{item.label}</span>
-                  </a>
+                  </div>
                 </Link>
               ))}
             </nav>

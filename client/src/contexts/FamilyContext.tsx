@@ -1,6 +1,4 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { useAuth } from "@/hooks/useAuth";
+import { createContext, useContext, useState, ReactNode } from "react";
 import type { Family } from "@shared/schema";
 
 interface FamilyContextType {
@@ -17,33 +15,23 @@ interface FamilyProviderProps {
 }
 
 export function FamilyProvider({ children }: FamilyProviderProps) {
-  const { isAuthenticated } = useAuth();
-  const [currentFamily, setCurrentFamily] = useState<Family | null>(null);
+  // Demo family for development
+  const demoFamily: Family = {
+    id: 1,
+    name: "The Smith Family",
+    createdBy: "1",
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
 
-  const { data: families = [], isLoading } = useQuery<Family[]>({
-    queryKey: ['/api/families'],
-    enabled: isAuthenticated,
-  });
-
-  // Auto-select first family if none selected
-  useEffect(() => {
-    if (families.length > 0 && !currentFamily) {
-      setCurrentFamily(families[0]);
-    }
-  }, [families, currentFamily]);
-
-  // Clear current family if user logs out
-  useEffect(() => {
-    if (!isAuthenticated) {
-      setCurrentFamily(null);
-    }
-  }, [isAuthenticated]);
+  const [currentFamily] = useState<Family | null>(demoFamily);
+  const families = [demoFamily];
 
   const value: FamilyContextType = {
     currentFamily,
     families,
-    setCurrentFamily,
-    isLoading,
+    setCurrentFamily: () => {}, // No-op for demo
+    isLoading: false,
   };
 
   return (

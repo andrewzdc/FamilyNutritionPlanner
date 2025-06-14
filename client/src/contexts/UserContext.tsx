@@ -1,5 +1,4 @@
 import { createContext, useContext, ReactNode } from "react";
-import { useAuth } from "@/hooks/useAuth";
 import type { User } from "@shared/schema";
 
 interface UserContextType {
@@ -15,12 +14,21 @@ interface UserProviderProps {
 }
 
 export function UserProvider({ children }: UserProviderProps) {
-  const { user, isLoading, isAuthenticated } = useAuth();
+  // Mock user for development
+  const mockUser: User = {
+    id: "1",
+    email: "demo@familyeats.com",
+    firstName: "Demo",
+    lastName: "User",
+    profileImageUrl: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
 
   const value: UserContextType = {
-    user,
-    isLoading,
-    isAuthenticated,
+    user: mockUser,
+    isLoading: false,
+    isAuthenticated: true,
   };
 
   return (

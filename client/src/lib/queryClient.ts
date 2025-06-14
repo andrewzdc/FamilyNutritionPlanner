@@ -1,4 +1,14 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
+import { 
+  mockRecipes, 
+  mockMeals, 
+  mockMealTypes, 
+  mockNutritionLogs, 
+  mockShoppingLists, 
+  mockShoppingListItems, 
+  mockRestaurantOrders,
+  mockFamilyMembers 
+} from "./mockData";
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
@@ -23,22 +33,46 @@ export async function apiRequest(
   return res;
 }
 
+// Mock query function for development
+const getMockData = (queryKey: any[]) => {
+  const url = queryKey[0] as string;
+  
+  // Simulate API delay
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      if (url.includes('/recipes')) {
+        resolve(mockRecipes);
+      } else if (url.includes('/meals')) {
+        resolve(mockMeals);
+      } else if (url.includes('/meal-types')) {
+        resolve(mockMealTypes);
+      } else if (url.includes('/nutrition-logs')) {
+        resolve(mockNutritionLogs);
+      } else if (url.includes('/shopping-lists') && url.includes('/items')) {
+        // Shopping list items
+        const listId = parseInt(url.match(/shopping-lists\/(\d+)/)?.[1] || '1');
+        resolve(mockShoppingListItems.filter(item => item.shoppingListId === listId));
+      } else if (url.includes('/shopping-lists')) {
+        resolve(mockShoppingLists);
+      } else if (url.includes('/restaurant-orders')) {
+        resolve(mockRestaurantOrders);
+      } else if (url.includes('/members')) {
+        resolve(mockFamilyMembers);
+      } else {
+        resolve([]);
+      }
+    }, 300); // 300ms delay to simulate network
+  });
+};
+
 type UnauthorizedBehavior = "returnNull" | "throw";
 export const getQueryFn: <T>(options: {
   on401: UnauthorizedBehavior;
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const res = await fetch(queryKey[0] as string, {
-      credentials: "include",
-    });
-
-    if (unauthorizedBehavior === "returnNull" && res.status === 401) {
-      return null;
-    }
-
-    await throwIfResNotOk(res);
-    return await res.json();
+    // Use mock data for development
+    return getMockData(queryKey) as Promise<T>;
   };
 
 export const queryClient = new QueryClient({
