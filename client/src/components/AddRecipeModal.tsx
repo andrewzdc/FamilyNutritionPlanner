@@ -236,27 +236,32 @@ export default function AddRecipeModal({ children, defaultTab = "manual", onCrea
           <DialogTitle>Add New Recipe</DialogTitle>
         </DialogHeader>
         
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 overflow-hidden">
+        <div className="flex-1 overflow-hidden">
+          {/* Custom Tab Navigation */}
           <div className="border-b border-gray-200 pb-4 mb-4">
             <div className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-9 gap-2">
               {inputMethods.map((method) => {
                 const IconComponent = method.icon;
                 return (
-                  <TabsTrigger
+                  <button
                     key={method.id}
-                    value={method.id}
-                    className="flex flex-col items-center p-3 h-auto data-[state=active]:bg-primary data-[state=active]:text-white"
+                    onClick={() => setActiveTab(method.id)}
+                    className={`flex flex-col items-center p-3 h-auto rounded-md transition-colors ${
+                      activeTab === method.id
+                        ? "bg-primary text-white"
+                        : "bg-gray-50 hover:bg-gray-100 text-gray-700"
+                    }`}
                   >
                     <IconComponent className="w-4 h-4 mb-1" />
                     <span className="text-xs">{method.label}</span>
-                  </TabsTrigger>
+                  </button>
                 );
               })}
             </div>
           </div>
 
           <div className="flex-1 overflow-y-auto">
-            <TabsContent value="manual" className="mt-0">
+            {activeTab === "manual" && (
               <div className="space-y-6">
                 {/* Basic Info */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -455,10 +460,10 @@ export default function AddRecipeModal({ children, defaultTab = "manual", onCrea
                   </Button>
                 </div>
               </div>
-            </TabsContent>
+            )}
 
             {/* URL Import Tab */}
-            <TabsContent value="url" className="mt-0">
+            {activeTab === "url" && (
               <div className="space-y-4">
                 <div>
                   <Label htmlFor="recipeUrl">Recipe URL</Label>
@@ -492,10 +497,10 @@ export default function AddRecipeModal({ children, defaultTab = "manual", onCrea
                   </ul>
                 </div>
               </div>
-            </TabsContent>
+            )}
 
             {/* Photo OCR Tab */}
-            <TabsContent value="photo" className="mt-0">
+            {activeTab === "photo" && (
               <div className="space-y-4">
                 <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
                   <Camera className="w-12 h-12 text-gray-400 mx-auto mb-4" />
@@ -504,10 +509,10 @@ export default function AddRecipeModal({ children, defaultTab = "manual", onCrea
                   <Button>Choose File</Button>
                 </div>
               </div>
-            </TabsContent>
+            )}
 
             {/* Document Upload Tab */}
-            <TabsContent value="document" className="mt-0">
+            {activeTab === "document" && (
               <div className="space-y-4">
                 <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
                   <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
@@ -516,10 +521,10 @@ export default function AddRecipeModal({ children, defaultTab = "manual", onCrea
                   <Button>Choose File</Button>
                 </div>
               </div>
-            </TabsContent>
+            )}
 
             {/* Video Analysis Tab */}
-            <TabsContent value="video" className="mt-0">
+            {activeTab === "video" && (
               <div className="space-y-4">
                 <div>
                   <Label htmlFor="videoUrl">Video URL</Label>
@@ -553,10 +558,10 @@ export default function AddRecipeModal({ children, defaultTab = "manual", onCrea
                   </ul>
                 </div>
               </div>
-            </TabsContent>
+            )}
 
             {/* Voice Dictation Tab */}
-            <TabsContent value="voice" className="mt-0">
+            {activeTab === "voice" && (
               <div className="space-y-4 text-center">
                 <div className="py-8">
                   <Mic className="w-16 h-16 text-gray-400 mx-auto mb-4" />
