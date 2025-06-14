@@ -1,21 +1,97 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useFamily } from "@/contexts/FamilyContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, Star, Clock, Users, Heart } from "lucide-react";
+import { Plus, Search, Star, Clock, Users, Heart, Link2, Camera, Video, Mic, FileText, Upload, Scan, Download, Sparkles, ChefHat } from "lucide-react";
 import type { Recipe } from "@shared/schema";
+import AddRecipeModal from "@/components/AddRecipeModal";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Recipes() {
   const { currentFamily } = useFamily();
   const [searchTerm, setSearchTerm] = useState("");
   const [activeFilter, setActiveFilter] = useState("All");
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const { data: recipes = [], isLoading } = useQuery<Recipe[]>({
-    queryKey: ['/api/families', currentFamily?.id, 'recipes'],
-    enabled: !!currentFamily?.id,
+    queryKey: ['/api/recipes'],
+    enabled: !!currentFamily
+  });
+
+  const createRecipeMutation = useMutation({
+    mutationFn: async (recipeData: any) => {
+      const response = await apiRequest('POST', '/api/recipes', recipeData);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/recipes'] });
+      toast({
+        title: "Recipe Added",
+        description: "Your recipe has been successfully added to the collection.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to add recipe",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const scrapeUrlMutation = useMutation({
+    mutationFn: async ({ url, familyId }: { url: string; familyId: number }) => {
+      const response = await apiRequest('POST', '/api/recipes/scrape-url', { url, familyId });
+      return response.json();
+    },
+    onSuccess: (data) => {
+      if (data.success) {
+        toast({
+          title: "Recipe Scraped",
+          description: "Recipe data extracted successfully! Review and save.",
+        });
+        return data.data;
+      } else {
+        throw new Error(data.message);
+      }
+    },
+    onError: (error) => {
+      toast({
+        title: "Scraping Failed",
+        description: error instanceof Error ? error.message : "Failed to extract recipe from URL",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const scrapeVideoMutation = useMutation({
+    mutationFn: async ({ url, familyId }: { url: string; familyId: number }) => {
+      const response = await apiRequest('POST', '/api/recipes/scrape-video', { url, familyId });
+      return response.json();
+    },
+    onSuccess: (data) => {
+      if (data.success) {
+        toast({
+          title: "Video Analyzed",
+          description: "Recipe extracted from video successfully!",
+        });
+        return data.data;
+      } else {
+        throw new Error(data.message);
+      }
+    },
+    onError: (error) => {
+      toast({
+        title: "Video Analysis Failed",
+        description: error instanceof Error ? error.message : "Failed to extract recipe from video",
+        variant: "destructive",
+      });
+    },
   });
 
   const filters = ["All", "Vegetarian", "Quick (<30 min)", "High Protein", "Dairy-Free"];
@@ -30,6 +106,52 @@ export default function Recipes() {
     return recipe.tags?.includes(activeFilter.toLowerCase()) || false;
   });
 
+  // Quick action buttons for different recipe input methods
+  const quickActions = [
+    {
+      id: "manual",
+      label: "Manual Entry",
+      icon: FileText,
+      description: "Traditional form input",
+      color: "bg-blue-50 hover:bg-blue-100 text-blue-600"
+    },
+    {
+      id: "url",
+      label: "Import from URL",
+      icon: Link2,
+      description: "Extract from recipe websites",
+      color: "bg-green-50 hover:bg-green-100 text-green-600"
+    },
+    {
+      id: "photo",
+      label: "Photo OCR",
+      icon: Camera,
+      description: "Scan recipe from photos",
+      color: "bg-purple-50 hover:bg-purple-100 text-purple-600"
+    },
+    {
+      id: "video",
+      label: "Video Analysis",
+      icon: Video,
+      description: "Extract from cooking videos",
+      color: "bg-red-50 hover:bg-red-100 text-red-600"
+    },
+    {
+      id: "voice",
+      label: "Voice Dictation",
+      icon: Mic,
+      description: "Speak your recipe",
+      color: "bg-yellow-50 hover:bg-yellow-100 text-yellow-600"
+    },
+    {
+      id: "ai",
+      label: "AI Generate",
+      icon: Sparkles,
+      description: "Create from ingredients",
+      color: "bg-indigo-50 hover:bg-indigo-100 text-indigo-600"
+    }
+  ];
+
   if (!currentFamily) {
     return <div>Please select a family first.</div>;
   }
@@ -41,13 +163,71 @@ export default function Recipes() {
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-4 sm:space-y-0">
           <div>
             <h2 className="text-3xl font-bold text-gray-900">Family Recipes</h2>
-            <p className="text-gray-600 mt-1">{recipes.length} recipes in your collection</p>
+            <p className="text-gray-600 mt-1">{recipes.length} recipes in your collection • Multiple import methods available</p>
           </div>
-          <Button className="bg-primary hover:bg-primary/90 text-white">
-            <Plus className="w-4 h-4 mr-2" />
-            Add Recipe
-          </Button>
+          <AddRecipeModal 
+            onCreateRecipe={createRecipeMutation.mutate} 
+            onScrapeUrl={scrapeUrlMutation.mutate} 
+            onScrapeVideo={scrapeVideoMutation.mutate}
+          >
+            <Button className="bg-primary hover:bg-primary/90 text-white">
+              <Plus className="w-4 h-4 mr-2" />
+              Add Recipe
+            </Button>
+          </AddRecipeModal>
         </div>
+
+        {/* Quick Actions Section */}
+        <Card className="border-2 border-dashed border-gray-200 bg-gradient-to-r from-blue-50 via-purple-50 to-green-50">
+          <CardContent className="p-6">
+            <div className="text-center mb-6">
+              <ChefHat className="w-12 h-12 text-gray-600 mx-auto mb-3" />
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Add Recipes Multiple Ways</h3>
+              <p className="text-gray-600">Choose from 9 different input methods to quickly build your recipe collection</p>
+            </div>
+            
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+              {quickActions.map((action) => {
+                const IconComponent = action.icon;
+                return (
+                  <AddRecipeModal 
+                    key={action.id} 
+                    defaultTab={action.id}
+                    onCreateRecipe={createRecipeMutation.mutate} 
+                    onScrapeUrl={scrapeUrlMutation.mutate} 
+                    onScrapeVideo={scrapeVideoMutation.mutate}
+                  >
+                    <Button 
+                      variant="ghost" 
+                      className={`h-auto p-4 flex flex-col items-center gap-3 rounded-lg transition-all ${action.color} border border-transparent hover:border-current`}
+                    >
+                      <IconComponent className="w-8 h-8" />
+                      <div className="text-center">
+                        <div className="font-medium text-sm">{action.label}</div>
+                        <div className="text-xs opacity-75 mt-1">{action.description}</div>
+                      </div>
+                    </Button>
+                  </AddRecipeModal>
+                );
+              })}
+            </div>
+
+            <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+              <div className="bg-white/50 rounded-lg p-3">
+                <div className="font-medium text-green-700 mb-1">Automated Extraction</div>
+                <div className="text-gray-600">URL scraping, video analysis, and photo OCR</div>
+              </div>
+              <div className="bg-white/50 rounded-lg p-3">
+                <div className="font-medium text-blue-700 mb-1">Voice & Documents</div>
+                <div className="text-gray-600">Speech-to-text and file upload support</div>
+              </div>
+              <div className="bg-white/50 rounded-lg p-3">
+                <div className="font-medium text-purple-700 mb-1">AI-Powered</div>
+                <div className="text-gray-600">Generate recipes from ingredients or preferences</div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Filters */}
         <Card>
@@ -111,10 +291,16 @@ export default function Recipes() {
                   : "Try adjusting your search or filters to find recipes."
                 }
               </p>
-              <Button className="bg-primary hover:bg-primary/90 text-white">
-                <Plus className="w-4 h-4 mr-2" />
-                Add Recipe
-              </Button>
+              <AddRecipeModal 
+                onCreateRecipe={createRecipeMutation.mutate} 
+                onScrapeUrl={scrapeUrlMutation.mutate} 
+                onScrapeVideo={scrapeVideoMutation.mutate}
+              >
+                <Button className="bg-primary hover:bg-primary/90 text-white">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Recipe
+                </Button>
+              </AddRecipeModal>
             </CardContent>
           </Card>
         ) : (

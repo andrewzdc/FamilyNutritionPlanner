@@ -42,8 +42,8 @@ interface AddRecipeModalProps {
   children: React.ReactNode;
   defaultTab?: string;
   onCreateRecipe?: (recipeData: any) => void;
-  onScrapeUrl?: (data: { url: string; familyId: number }) => Promise<any>;
-  onScrapeVideo?: (data: { url: string; familyId: number }) => Promise<any>;
+  onScrapeUrl?: (data: { url: string; familyId: number }) => void;
+  onScrapeVideo?: (data: { url: string; familyId: number }) => void;
 }
 
 export default function AddRecipeModal({ children, defaultTab = "manual", onCreateRecipe, onScrapeUrl, onScrapeVideo }: AddRecipeModalProps) {
@@ -127,38 +127,22 @@ export default function AddRecipeModal({ children, defaultTab = "manual", onCrea
     if (data.imageUrl) setImageUrl(data.imageUrl);
   };
 
-  const handleUrlScrape = async () => {
+  const handleUrlScrape = () => {
     if (!recipeUrl.trim() || !onScrapeUrl) return;
     
     setUrlLoading(true);
-    try {
-      const scrapedData = await onScrapeUrl({ url: recipeUrl, familyId: 1 });
-      if (scrapedData) {
-        populateFromScrapedData(scrapedData);
-        setActiveTab("manual"); // Switch to manual tab to review/edit
-      }
-    } catch (error) {
-      console.error("Failed to scrape URL:", error);
-    } finally {
-      setUrlLoading(false);
-    }
+    onScrapeUrl({ url: recipeUrl, familyId: 1 });
+    // Loading state will be managed by the mutation
+    setTimeout(() => setUrlLoading(false), 1000);
   };
 
-  const handleVideoScrape = async () => {
+  const handleVideoScrape = () => {
     if (!videoUrl.trim() || !onScrapeVideo) return;
     
     setVideoLoading(true);
-    try {
-      const scrapedData = await onScrapeVideo({ url: videoUrl, familyId: 1 });
-      if (scrapedData) {
-        populateFromScrapedData(scrapedData);
-        setActiveTab("manual");
-      }
-    } catch (error) {
-      console.error("Failed to scrape video:", error);
-    } finally {
-      setVideoLoading(false);
-    }
+    onScrapeVideo({ url: videoUrl, familyId: 1 });
+    // Loading state will be managed by the mutation
+    setTimeout(() => setVideoLoading(false), 1000);
   };
 
   const handleSubmit = () => {
