@@ -422,6 +422,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Recipe scraping routes
+  app.post('/api/recipes/scrape-url', async (req, res) => {
+    try {
+      const { url, familyId } = req.body;
+      
+      if (!url || !familyId) {
+        return res.status(400).json({ message: "URL and familyId are required" });
+      }
+
+      // Import the scraping service
+      const { RecipeScrapingService } = await import('./recipeScrapingService');
+      const scrapedData = await RecipeScrapingService.scrapeRecipe(url);
+      
+      // Return scraped data for preview (don't save yet)
+      res.json({
+        success: true,
+        data: scrapedData
+      });
+    } catch (error) {
+      console.error("Error scraping recipe:", error);
+      res.status(500).json({ 
+        success: false,
+        message: error instanceof Error ? error.message : "Failed to scrape recipe"
+      });
+    }
+  });
+
+  app.post('/api/recipes/scrape-video', async (req, res) => {
+    try {
+      const { url, familyId } = req.body;
+      
+      if (!url || !familyId) {
+        return res.status(400).json({ message: "URL and familyId are required" });
+      }
+
+      const { RecipeScrapingService } = await import('./recipeScrapingService');
+      const scrapedData = await RecipeScrapingService.scrapeFromVideo(url);
+      
+      res.json({
+        success: true,
+        data: scrapedData
+      });
+    } catch (error) {
+      console.error("Error scraping video recipe:", error);
+      res.status(500).json({ 
+        success: false,
+        message: error instanceof Error ? error.message : "Failed to scrape video recipe"
+      });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

@@ -40,11 +40,15 @@ import {
 
 interface AddRecipeModalProps {
   children: React.ReactNode;
+  defaultTab?: string;
+  onCreateRecipe?: (recipeData: any) => void;
+  onScrapeUrl?: (data: { url: string; familyId: number }) => Promise<any>;
+  onScrapeVideo?: (data: { url: string; familyId: number }) => Promise<any>;
 }
 
-export default function AddRecipeModal({ children }: AddRecipeModalProps) {
+export default function AddRecipeModal({ children, defaultTab = "manual", onCreateRecipe, onScrapeUrl, onScrapeVideo }: AddRecipeModalProps) {
   const [open, setOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState("manual");
+  const [activeTab, setActiveTab] = useState(defaultTab);
   
   // Form state
   const [name, setName] = useState("");
@@ -58,6 +62,14 @@ export default function AddRecipeModal({ children }: AddRecipeModalProps) {
   const [tags, setTags] = useState<string[]>([]);
   const [currentTag, setCurrentTag] = useState("");
   const [imageUrl, setImageUrl] = useState("");
+  
+  // URL scraping state
+  const [recipeUrl, setRecipeUrl] = useState("");
+  const [urlLoading, setUrlLoading] = useState(false);
+  
+  // Video scraping state
+  const [videoUrl, setVideoUrl] = useState("");
+  const [videoLoading, setVideoLoading] = useState(false);
 
   const addIngredient = () => {
     setIngredients([...ingredients, ""]);
@@ -102,9 +114,57 @@ export default function AddRecipeModal({ children }: AddRecipeModalProps) {
     setTags(tags.filter(tag => tag !== tagToRemove));
   };
 
+  const populateFromScrapedData = (data: any) => {
+    if (data.name) setName(data.name);
+    if (data.description) setDescription(data.description);
+    if (data.ingredients) setIngredients(data.ingredients.length > 0 ? data.ingredients : [""]);
+    if (data.instructions) setInstructions(data.instructions.length > 0 ? data.instructions : [""]);
+    if (data.prepTime) setPrepTime(data.prepTime.toString());
+    if (data.cookTime) setCookTime(data.cookTime.toString());
+    if (data.servings) setServings(data.servings.toString());
+    if (data.difficulty) setDifficulty(data.difficulty);
+    if (data.tags) setTags(data.tags);
+    if (data.imageUrl) setImageUrl(data.imageUrl);
+  };
+
+  const handleUrlScrape = async () => {
+    if (!recipeUrl.trim() || !onScrapeUrl) return;
+    
+    setUrlLoading(true);
+    try {
+      const scrapedData = await onScrapeUrl({ url: recipeUrl, familyId: 1 });
+      if (scrapedData) {
+        populateFromScrapedData(scrapedData);
+        setActiveTab("manual"); // Switch to manual tab to review/edit
+      }
+    } catch (error) {
+      console.error("Failed to scrape URL:", error);
+    } finally {
+      setUrlLoading(false);
+    }
+  };
+
+  const handleVideoScrape = async () => {
+    if (!videoUrl.trim() || !onScrapeVideo) return;
+    
+    setVideoLoading(true);
+    try {
+      const scrapedData = await onScrapeVideo({ url: videoUrl, familyId: 1 });
+      if (scrapedData) {
+        populateFromScrapedData(scrapedData);
+        setActiveTab("manual");
+      }
+    } catch (error) {
+      console.error("Failed to scrape video:", error);
+    } finally {
+      setVideoLoading(false);
+    }
+  };
+
   const handleSubmit = () => {
-    // TODO: Implement recipe creation
-    console.log("Creating recipe:", {
+    if (!onCreateRecipe) return;
+    
+    const recipeData = {
       name,
       description,
       ingredients: ingredients.filter(i => i.trim()),
@@ -115,7 +175,13 @@ export default function AddRecipeModal({ children }: AddRecipeModalProps) {
       difficulty,
       tags,
       imageUrl,
-    });
+      familyId: 1, // TODO: Use actual family ID
+      nutritionInfo: null,
+      rating: 0,
+      ratingCount: 0,
+    };
+    
+    onCreateRecipe(recipeData);
     setOpen(false);
   };
 
@@ -415,14 +481,31 @@ export default function AddRecipeModal({ children }: AddRecipeModalProps) {
                   <div className="flex gap-2 mt-2">
                     <Input
                       id="recipeUrl"
+                      value={recipeUrl}
+                      onChange={(e) => setRecipeUrl(e.target.value)}
                       placeholder="https://example.com/recipe"
                       className="flex-1"
                     />
-                    <Button>Import</Button>
+                    <Button 
+                      onClick={handleUrlScrape}
+                      disabled={!recipeUrl.trim() || urlLoading}
+                    >
+                      {urlLoading ? "Importing..." : "Import"}
+                    </Button>
                   </div>
                   <p className="text-sm text-gray-500 mt-2">
                     Supports popular recipe sites like AllRecipes, Food Network, Tasty, and more
                   </p>
+                </div>
+                
+                <div className="bg-blue-50 rounded-lg p-4">
+                  <h4 className="font-medium text-blue-900 mb-2">How URL Import Works</h4>
+                  <ul className="text-sm text-blue-700 space-y-1">
+                    <li>• Automatically extracts recipe name, ingredients, and instructions</li>
+                    <li>• Captures cooking times, serving sizes, and difficulty levels</li>
+                    <li>• Imports recipe images and nutritional information when available</li>
+                    <li>• Works with structured recipe data (JSON-LD and microdata)</li>
+                  </ul>
                 </div>
               </div>
             </TabsContent>
@@ -459,14 +542,31 @@ export default function AddRecipeModal({ children }: AddRecipeModalProps) {
                   <div className="flex gap-2 mt-2">
                     <Input
                       id="videoUrl"
+                      value={videoUrl}
+                      onChange={(e) => setVideoUrl(e.target.value)}
                       placeholder="https://youtube.com/watch?v=..."
                       className="flex-1"
                     />
-                    <Button>Analyze</Button>
+                    <Button 
+                      onClick={handleVideoScrape}
+                      disabled={!videoUrl.trim() || videoLoading}
+                    >
+                      {videoLoading ? "Analyzing..." : "Analyze"}
+                    </Button>
                   </div>
                   <p className="text-sm text-gray-500 mt-2">
                     Supports YouTube, TikTok, Instagram, and other video platforms
                   </p>
+                </div>
+                
+                <div className="bg-amber-50 rounded-lg p-4">
+                  <h4 className="font-medium text-amber-900 mb-2">Video Analysis Features</h4>
+                  <ul className="text-sm text-amber-700 space-y-1">
+                    <li>• Extracts ingredients from video descriptions and captions</li>
+                    <li>• Identifies cooking steps and techniques from visual content</li>
+                    <li>• Estimates cooking times based on video segments</li>
+                    <li>• Requires API keys for video processing services</li>
+                  </ul>
                 </div>
               </div>
             </TabsContent>
