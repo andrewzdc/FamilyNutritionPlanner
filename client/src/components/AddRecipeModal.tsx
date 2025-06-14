@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
@@ -11,12 +11,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
 import {
   Select,
   SelectContent,
@@ -28,11 +22,10 @@ import {
   Plus, 
   X, 
   Upload, 
-  Camera, 
-  Link, 
-  FileText, 
-  Video, 
+  Camera,
   Mic,
+  Link,
+  Video,
   Scan,
   Download,
   Sparkles
@@ -49,36 +42,62 @@ interface AddRecipeModalProps {
 export default function AddRecipeModal({ children, defaultTab = "manual", onCreateRecipe, onScrapeUrl, onScrapeVideo }: AddRecipeModalProps) {
   const [open, setOpen] = useState(false);
   const [activeTab, setActiveTab] = useState(defaultTab);
-  
-  // Form state
+
+  // Manual form states
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [ingredients, setIngredients] = useState<string[]>([""]);
-  const [instructions, setInstructions] = useState<string[]>([""]);
+  const [servings, setServings] = useState("");
   const [prepTime, setPrepTime] = useState("");
   const [cookTime, setCookTime] = useState("");
-  const [servings, setServings] = useState("");
   const [difficulty, setDifficulty] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
+  const [ingredients, setIngredients] = useState<string[]>([""]);
+  const [instructions, setInstructions] = useState<string[]>([""]);
   const [tags, setTags] = useState<string[]>([]);
   const [currentTag, setCurrentTag] = useState("");
-  const [imageUrl, setImageUrl] = useState("");
-  
-  // URL scraping state
+
+  // URL/Video states
   const [recipeUrl, setRecipeUrl] = useState("");
-  const [urlLoading, setUrlLoading] = useState(false);
-  
-  // Video scraping state
   const [videoUrl, setVideoUrl] = useState("");
+  const [urlLoading, setUrlLoading] = useState(false);
   const [videoLoading, setVideoLoading] = useState(false);
+
+  const inputMethods = [
+    { id: "manual", label: "Manual", icon: Plus },
+    { id: "url", label: "URL Import", icon: Link },
+    { id: "video", label: "Video", icon: Video },
+    { id: "photo", label: "Photo OCR", icon: Camera },
+    { id: "document", label: "Document", icon: Upload },
+    { id: "voice", label: "Voice", icon: Mic },
+    { id: "barcode", label: "Barcode", icon: Scan },
+    { id: "import", label: "Import File", icon: Download },
+    { id: "ai", label: "AI Generate", icon: Sparkles },
+  ];
+
+  const resetForm = () => {
+    setName("");
+    setDescription("");
+    setServings("");
+    setPrepTime("");
+    setCookTime("");
+    setDifficulty("");
+    setImageUrl("");
+    setIngredients([""]);
+    setInstructions([""]);
+    setTags([]);
+    setCurrentTag("");
+    setRecipeUrl("");
+    setVideoUrl("");
+  };
 
   const addIngredient = () => {
     setIngredients([...ingredients, ""]);
   };
 
   const updateIngredient = (index: number, value: string) => {
-    const updated = [...ingredients];
-    updated[index] = value;
-    setIngredients(updated);
+    const newIngredients = [...ingredients];
+    newIngredients[index] = value;
+    setIngredients(newIngredients);
   };
 
   const removeIngredient = (index: number) => {
@@ -92,9 +111,9 @@ export default function AddRecipeModal({ children, defaultTab = "manual", onCrea
   };
 
   const updateInstruction = (index: number, value: string) => {
-    const updated = [...instructions];
-    updated[index] = value;
-    setInstructions(updated);
+    const newInstructions = [...instructions];
+    newInstructions[index] = value;
+    setInstructions(newInstructions);
   };
 
   const removeInstruction = (index: number) => {
@@ -132,7 +151,6 @@ export default function AddRecipeModal({ children, defaultTab = "manual", onCrea
     
     setUrlLoading(true);
     onScrapeUrl({ url: recipeUrl, familyId: 1 });
-    // Loading state will be managed by the mutation
     setTimeout(() => setUrlLoading(false), 1000);
   };
 
@@ -141,7 +159,6 @@ export default function AddRecipeModal({ children, defaultTab = "manual", onCrea
     
     setVideoLoading(true);
     onScrapeVideo({ url: videoUrl, familyId: 1 });
-    // Loading state will be managed by the mutation
     setTimeout(() => setVideoLoading(false), 1000);
   };
 
@@ -153,90 +170,31 @@ export default function AddRecipeModal({ children, defaultTab = "manual", onCrea
       description,
       ingredients: ingredients.filter(i => i.trim()),
       instructions: instructions.filter(i => i.trim()),
-      prepTime: parseInt(prepTime) || 0,
-      cookTime: parseInt(cookTime) || 0,
-      servings: parseInt(servings) || 1,
+      servings: servings ? parseInt(servings) : undefined,
+      prepTime: prepTime ? parseInt(prepTime) : undefined,
+      cookTime: cookTime ? parseInt(cookTime) : undefined,
       difficulty,
+      imageUrl: imageUrl || undefined,
       tags,
-      imageUrl,
-      familyId: 1, // TODO: Use actual family ID
-      nutritionInfo: null,
-      rating: 0,
-      ratingCount: 0,
+      familyId: 1,
     };
-    
+
     onCreateRecipe(recipeData);
+    resetForm();
     setOpen(false);
   };
-
-  const inputMethods = [
-    {
-      id: "manual",
-      label: "Manual Entry",
-      icon: FileText,
-      description: "Enter recipe details manually"
-    },
-    {
-      id: "url",
-      label: "From URL",
-      icon: Link,
-      description: "Import from recipe websites"
-    },
-    {
-      id: "photo",
-      label: "Photo OCR",
-      icon: Camera,
-      description: "Extract text from recipe photos"
-    },
-    {
-      id: "document",
-      label: "Document",
-      icon: Upload,
-      description: "Upload PDF, Word, or text files"
-    },
-    {
-      id: "video",
-      label: "Video Analysis",
-      icon: Video,
-      description: "Extract from YouTube/TikTok videos"
-    },
-    {
-      id: "voice",
-      label: "Voice Dictation",
-      icon: Mic,
-      description: "Speak your recipe aloud"
-    },
-    {
-      id: "barcode",
-      label: "Barcode Scan",
-      icon: Scan,
-      description: "Scan packaged food barcodes"
-    },
-    {
-      id: "import",
-      label: "Import File",
-      icon: Download,
-      description: "Import from other recipe apps"
-    },
-    {
-      id: "ai",
-      label: "AI Generate",
-      icon: Sparkles,
-      description: "Generate from ingredients or preferences"
-    }
-  ];
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         {children}
       </DialogTrigger>
-      <DialogContent className="max-w-4xl h-[90vh] overflow-hidden">
-        <DialogHeader>
+      <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0">
+        <DialogHeader className="p-6 pb-0">
           <DialogTitle>Add New Recipe</DialogTitle>
         </DialogHeader>
         
-        <div className="flex-1 overflow-hidden">
+        <div className="flex-1 overflow-hidden p-6">
           {/* Custom Tab Navigation */}
           <div className="border-b border-gray-200 pb-4 mb-4">
             <div className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-9 gap-2">
@@ -261,26 +219,30 @@ export default function AddRecipeModal({ children, defaultTab = "manual", onCrea
           </div>
 
           <div className="flex-1 overflow-y-auto">
+            {/* Manual Entry Tab */}
             {activeTab === "manual" && (
               <div className="space-y-6">
                 {/* Basic Info */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="name">Recipe Name *</Label>
+                    <Label htmlFor="name">Recipe Name</Label>
                     <Input
                       id="name"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       placeholder="Enter recipe name"
+                      className="mt-2"
                     />
                   </div>
                   <div>
-                    <Label htmlFor="imageUrl">Image URL</Label>
+                    <Label htmlFor="servings">Servings</Label>
                     <Input
-                      id="imageUrl"
-                      value={imageUrl}
-                      onChange={(e) => setImageUrl(e.target.value)}
-                      placeholder="https://example.com/image.jpg"
+                      id="servings"
+                      type="number"
+                      value={servings}
+                      onChange={(e) => setServings(e.target.value)}
+                      placeholder="4"
+                      className="mt-2"
                     />
                   </div>
                 </div>
@@ -293,45 +255,37 @@ export default function AddRecipeModal({ children, defaultTab = "manual", onCrea
                     onChange={(e) => setDescription(e.target.value)}
                     placeholder="Brief description of the recipe"
                     rows={3}
+                    className="mt-2"
                   />
                 </div>
 
-                {/* Time and Difficulty */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
-                    <Label htmlFor="prepTime">Prep Time (min)</Label>
+                    <Label htmlFor="prepTime">Prep Time (minutes)</Label>
                     <Input
                       id="prepTime"
                       type="number"
                       value={prepTime}
                       onChange={(e) => setPrepTime(e.target.value)}
-                      placeholder="15"
+                      placeholder="30"
+                      className="mt-2"
                     />
                   </div>
                   <div>
-                    <Label htmlFor="cookTime">Cook Time (min)</Label>
+                    <Label htmlFor="cookTime">Cook Time (minutes)</Label>
                     <Input
                       id="cookTime"
                       type="number"
                       value={cookTime}
                       onChange={(e) => setCookTime(e.target.value)}
-                      placeholder="30"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="servings">Servings</Label>
-                    <Input
-                      id="servings"
-                      type="number"
-                      value={servings}
-                      onChange={(e) => setServings(e.target.value)}
-                      placeholder="4"
+                      placeholder="45"
+                      className="mt-2"
                     />
                   </div>
                   <div>
                     <Label htmlFor="difficulty">Difficulty</Label>
                     <Select value={difficulty} onValueChange={setDifficulty}>
-                      <SelectTrigger>
+                      <SelectTrigger className="mt-2">
                         <SelectValue placeholder="Select difficulty" />
                       </SelectTrigger>
                       <SelectContent>
@@ -343,13 +297,24 @@ export default function AddRecipeModal({ children, defaultTab = "manual", onCrea
                   </div>
                 </div>
 
+                <div>
+                  <Label htmlFor="imageUrl">Image URL (optional)</Label>
+                  <Input
+                    id="imageUrl"
+                    value={imageUrl}
+                    onChange={(e) => setImageUrl(e.target.value)}
+                    placeholder="https://example.com/recipe-image.jpg"
+                    className="mt-2"
+                  />
+                </div>
+
                 {/* Ingredients */}
                 <div>
                   <div className="flex items-center justify-between mb-3">
-                    <Label>Ingredients *</Label>
-                    <Button type="button" onClick={addIngredient} size="sm" variant="outline">
+                    <Label>Ingredients</Label>
+                    <Button type="button" onClick={addIngredient} size="sm">
                       <Plus className="w-4 h-4 mr-1" />
-                      Add Ingredient
+                      Add
                     </Button>
                   </div>
                   <div className="space-y-2">
@@ -359,6 +324,7 @@ export default function AddRecipeModal({ children, defaultTab = "manual", onCrea
                           value={ingredient}
                           onChange={(e) => updateIngredient(index, e.target.value)}
                           placeholder={`Ingredient ${index + 1}`}
+                          className="flex-1"
                         />
                         {ingredients.length > 1 && (
                           <Button
@@ -378,23 +344,24 @@ export default function AddRecipeModal({ children, defaultTab = "manual", onCrea
                 {/* Instructions */}
                 <div>
                   <div className="flex items-center justify-between mb-3">
-                    <Label>Instructions *</Label>
-                    <Button type="button" onClick={addInstruction} size="sm" variant="outline">
+                    <Label>Instructions</Label>
+                    <Button type="button" onClick={addInstruction} size="sm">
                       <Plus className="w-4 h-4 mr-1" />
-                      Add Step
+                      Add
                     </Button>
                   </div>
                   <div className="space-y-2">
                     {instructions.map((instruction, index) => (
                       <div key={index} className="flex items-start gap-2">
-                        <div className="bg-primary text-white rounded-full w-6 h-6 flex items-center justify-center text-sm mt-2 flex-shrink-0">
-                          {index + 1}
-                        </div>
+                        <span className="text-sm font-medium text-gray-500 mt-3 min-w-[1.5rem]">
+                          {index + 1}.
+                        </span>
                         <Textarea
                           value={instruction}
                           onChange={(e) => updateInstruction(index, e.target.value)}
-                          placeholder={`Step ${index + 1} instructions`}
+                          placeholder={`Step ${index + 1}`}
                           rows={2}
+                          className="flex-1"
                         />
                         {instructions.length > 1 && (
                           <Button
@@ -548,10 +515,10 @@ export default function AddRecipeModal({ children, defaultTab = "manual", onCrea
                   </p>
                 </div>
                 
-                <div className="bg-amber-50 rounded-lg p-4">
-                  <h4 className="font-medium text-amber-900 mb-2">Video Analysis Features</h4>
-                  <ul className="text-sm text-amber-700 space-y-1">
-                    <li>• Extracts ingredients from video descriptions and captions</li>
+                <div className="bg-purple-50 rounded-lg p-4">
+                  <h4 className="font-medium text-purple-900 mb-2">AI Video Analysis</h4>
+                  <ul className="text-sm text-purple-700 space-y-1">
+                    <li>• Extracts ingredients and instructions from cooking videos</li>
                     <li>• Identifies cooking steps and techniques from visual content</li>
                     <li>• Estimates cooking times based on video segments</li>
                     <li>• Requires API keys for video processing services</li>
@@ -570,10 +537,10 @@ export default function AddRecipeModal({ children, defaultTab = "manual", onCrea
                   <Button size="lg">Start Recording</Button>
                 </div>
               </div>
-            </TabsContent>
+            )}
 
             {/* Barcode Scan Tab */}
-            <TabsContent value="barcode" className="mt-0">
+            {activeTab === "barcode" && (
               <div className="space-y-4 text-center">
                 <div className="py-8">
                   <Scan className="w-16 h-16 text-gray-400 mx-auto mb-4" />
@@ -582,10 +549,10 @@ export default function AddRecipeModal({ children, defaultTab = "manual", onCrea
                   <Button size="lg">Open Scanner</Button>
                 </div>
               </div>
-            </TabsContent>
+            )}
 
             {/* Import File Tab */}
-            <TabsContent value="import" className="mt-0">
+            {activeTab === "import" && (
               <div className="space-y-4">
                 <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
                   <Download className="w-12 h-12 text-gray-400 mx-auto mb-4" />
@@ -594,10 +561,10 @@ export default function AddRecipeModal({ children, defaultTab = "manual", onCrea
                   <Button>Choose File</Button>
                 </div>
               </div>
-            </TabsContent>
+            )}
 
             {/* AI Generate Tab */}
-            <TabsContent value="ai" className="mt-0">
+            {activeTab === "ai" && (
               <div className="space-y-4">
                 <div>
                   <Label htmlFor="ingredients">Available Ingredients</Label>
@@ -621,9 +588,9 @@ export default function AddRecipeModal({ children, defaultTab = "manual", onCrea
                   Generate Recipe with AI
                 </Button>
               </div>
-            </TabsContent>
+            )}
           </div>
-        </Tabs>
+        </div>
       </DialogContent>
     </Dialog>
   );
