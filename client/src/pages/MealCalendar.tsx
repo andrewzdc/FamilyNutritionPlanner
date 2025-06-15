@@ -216,9 +216,11 @@ export default function MealCalendar() {
 
   const getMealForSlot = (date: Date, mealTypeId: number) => {
     const dateStr = format(date, 'yyyy-MM-dd');
-    return meals.find(meal => 
+    const foundMeal = meals.find(meal => 
       meal.scheduledDate === dateStr && meal.mealTypeId === mealTypeId
     );
+    console.log(`Looking for meal on ${dateStr} for mealType ${mealTypeId}:`, foundMeal);
+    return foundMeal;
   };
 
   const handleAcceptRecommendation = (recommendation: RecommendedMeal) => {
@@ -362,6 +364,10 @@ export default function MealCalendar() {
 
   const weekStart = startOfWeek(currentWeek);
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+  
+  // Log the current week being displayed
+  console.log('Debug - Current week days:', weekDays.map(d => format(d, 'yyyy-MM-dd')));
+  console.log('Debug - Meal dates in data:', meals.map(m => m.scheduledDate));
 
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
