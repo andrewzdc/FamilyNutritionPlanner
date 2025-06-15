@@ -76,15 +76,21 @@ export default function MealCalendar() {
 
   // Get meals for current family
   const { data: meals = [] } = useQuery<Meal[]>({
-    queryKey: ['/api/families', currentFamily?.id, 'meals'],
+    queryKey: [`/api/families/${currentFamily?.id}/meals`],
     enabled: !!currentFamily?.id,
   });
 
   // Get recipes for current family
   const { data: recipes = [] } = useQuery<Recipe[]>({
-    queryKey: ['/api/recipes'],
+    queryKey: [`/api/families/${currentFamily?.id}/recipes`],
     enabled: !!currentFamily?.id,
   });
+
+  // Debug logging
+  console.log('Debug - Current family:', currentFamily);
+  console.log('Debug - Recipes loaded:', recipes.length, recipes);
+  console.log('Debug - Meals loaded:', meals.length, meals);
+  console.log('Debug - Mock meal types:', mockMealTypes);
 
   // Create meal mutation
   const createMealMutation = useMutation({
@@ -93,7 +99,7 @@ export default function MealCalendar() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/families', currentFamily?.id, 'meals'] });
+      queryClient.invalidateQueries({ queryKey: [`/api/families/${currentFamily?.id}/meals`] });
     },
   });
 
@@ -529,70 +535,84 @@ export default function MealCalendar() {
                   {weekDays.map((day) => {
                     const meal = getMealForSlot(day, mealType.id);
                     return (
-                      <div key={`${day.toISOString()}-${mealType.id}`} className="min-h-[120px] border border-gray-200 rounded-lg p-2">
+                      <div key={`${day.toISOString()}-${mealType.id}`} className="min-h-[120px] border border-gray-200 rounded-lg p-2 relative group">
                         {meal ? (
-                          <div className="space-y-2">
+                          <div className="space-y-2 h-full">
                             {(() => {
                               const recipe = recipes.find(r => r.id === meal.recipeId);
-                              return recipe ? (
-                                <div className="space-y-2">
-                                  {recipe.imageUrl && (
-                                    <div className="w-full h-16 rounded overflow-hidden">
-                                      <img 
-                                        src={recipe.imageUrl} 
-                                        alt={recipe.name}
-                                        className="w-full h-full object-cover"
-                                      />
+                              if (recipe) {
+                                return (
+                                  <div className="space-y-2">
+                                    <div className="text-sm font-medium text-gray-900 leading-tight">
+                                      {recipe.name}
                                     </div>
-                                  )}
-                                  <div className="text-xs font-medium text-gray-900 leading-tight">
-                                    {recipe.name}
-                                  </div>
-                                  <div className="flex items-center justify-between text-xs text-gray-500">
-                                    <div className="flex items-center space-x-1">
-                                      <Users className="w-3 h-3" />
-                                      <span>{meal.servings}</span>
-                                    </div>
-                                    {recipe.prepTime && recipe.cookTime && (
+                                    <div className="flex items-center space-x-3 text-xs text-gray-500">
+                                      <div className="flex items-center space-x-1">
+                                        <Users className="w-3 h-3" />
+                                        <span>{meal.servings}</span>
+                                      </div>
                                       <div className="flex items-center space-x-1">
                                         <Clock className="w-3 h-3" />
-                                        <span>{recipe.prepTime + recipe.cookTime}m</span>
+                                        <span>{(recipe.prepTime || 0) + (recipe.cookTime || 0)}m</span>
+                                      </div>
+                                    </div>
+                                    {recipe.tags && recipe.tags.length > 0 && (
+                                      <div className="flex flex-wrap gap-1">
+                                        {recipe.tags.slice(0, 2).map((tag) => (
+                                          <Badge key={tag} variant="secondary" className="text-xs px-1 py-0">
+                                            {tag}
+                                          </Badge>
+                                        ))}
                                       </div>
                                     )}
                                   </div>
-                                </div>
-                              ) : (
-                                <div className="text-xs font-medium text-gray-900">
-                                  Recipe #{meal.recipeId}
-                                </div>
-                              );
+                                );
+                              } else {
+                                return (
+                                  <div className="text-sm font-medium text-gray-900">
+                                    Recipe #{meal.recipeId}
+                                  </div>
+                                );
+                              }
                             })()}
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                                  <MoreHorizontal className="w-4 h-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent>
-                                <DropdownMenuItem onClick={() => handleSwapMeal(meal)}>
-                                  <RefreshCw className="w-4 h-4 mr-2" />
-                                  Swap Recipe
-                                </DropdownMenuItem>
-                                <DropdownMenuItem>
-                                  <Edit className="w-4 h-4 mr-2" />
-                                  Edit Meal
-                                </DropdownMenuItem>
-                                <DropdownMenuItem>
-                                  <Copy className="w-4 h-4 mr-2" />
-                                  Copy Meal
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem className="text-red-600">
-                                  <Trash2 className="w-4 h-4 mr-2" />
-                                  Delete Meal
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
+                            
+                            {/* Always visible swap button */}
+                            <div className="absolute top-2 right-2">
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                className="h-7 w-7 p-0 opacity-70 hover:opacity-100"
+                                onClick={() => handleSwapMeal(meal)}
+                              >
+                                <RefreshCw className="w-3 h-3" />
+                              </Button>
+                            </div>
+                            
+                            {/* Dropdown menu - hidden by default, shows on hover */}
+                            <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="outline" size="sm" className="h-6 w-6 p-0">
+                                    <MoreHorizontal className="w-3 h-3" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent>
+                                  <DropdownMenuItem>
+                                    <Edit className="w-4 h-4 mr-2" />
+                                    Edit Meal
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem>
+                                    <Copy className="w-4 h-4 mr-2" />
+                                    Copy Meal
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem className="text-red-600">
+                                    <Trash2 className="w-4 h-4 mr-2" />
+                                    Delete Meal
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
                           </div>
                         ) : (
                           <Dialog open={showRecommendations && selectedSlot?.date.toDateString() === day.toDateString() && selectedSlot?.mealTypeId === mealType.id} onOpenChange={setShowRecommendations}>
