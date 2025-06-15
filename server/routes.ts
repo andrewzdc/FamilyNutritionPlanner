@@ -611,6 +611,131 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Gamification routes
+  
+  // Get all achievements
+  app.get('/api/achievements', async (req, res) => {
+    try {
+      const achievements = await storage.getAllAchievements();
+      res.json(achievements);
+    } catch (error) {
+      console.error('Error fetching achievements:', error);
+      res.status(500).json({ message: 'Failed to fetch achievements' });
+    }
+  });
+
+  // Get user achievements
+  app.get('/api/achievements/user/:userId', async (req, res) => {
+    try {
+      const userId = req.params.userId;
+      const userAchievements = await storage.getUserAchievements(userId);
+      res.json(userAchievements);
+    } catch (error) {
+      console.error('Error fetching user achievements:', error);
+      res.status(500).json({ message: 'Failed to fetch user achievements' });
+    }
+  });
+
+  // Get user stats
+  app.get('/api/user-stats/:userId/:familyId', async (req, res) => {
+    try {
+      const userId = req.params.userId;
+      const familyId = parseInt(req.params.familyId);
+      const stats = await storage.getUserStats(userId, familyId);
+      res.json(stats || {});
+    } catch (error) {
+      console.error('Error fetching user stats:', error);
+      res.status(500).json({ message: 'Failed to fetch user stats' });
+    }
+  });
+
+  // Get cooking streaks
+  app.get('/api/cooking-streaks/:userId/:familyId', async (req, res) => {
+    try {
+      const userId = req.params.userId;
+      const familyId = parseInt(req.params.familyId);
+      const streaks = await storage.getCookingStreaks(userId, familyId);
+      res.json(streaks);
+    } catch (error) {
+      console.error('Error fetching cooking streaks:', error);
+      res.status(500).json({ message: 'Failed to fetch cooking streaks' });
+    }
+  });
+
+  // Get active challenges
+  app.get('/api/challenges/active', async (req, res) => {
+    try {
+      const challenges = await storage.getActiveChallenges();
+      res.json(challenges);
+    } catch (error) {
+      console.error('Error fetching active challenges:', error);
+      res.status(500).json({ message: 'Failed to fetch active challenges' });
+    }
+  });
+
+  // Join challenge
+  app.post('/api/challenges/join', async (req, res) => {
+    try {
+      const { challengeId, userId, familyId } = req.body;
+      const participant = await storage.joinChallenge({
+        challengeId,
+        userId,
+        familyId,
+        progress: {},
+        rank: null,
+        completedAt: null
+      });
+      res.json(participant);
+    } catch (error) {
+      console.error('Error joining challenge:', error);
+      res.status(500).json({ message: 'Failed to join challenge' });
+    }
+  });
+
+  // Award achievement
+  app.post('/api/achievements/award', async (req, res) => {
+    try {
+      const { userId, familyId, action } = req.body;
+      const newAchievements = await storage.checkAndAwardAchievements(userId, familyId, action);
+      res.json(newAchievements);
+    } catch (error) {
+      console.error('Error awarding achievements:', error);
+      res.status(500).json({ message: 'Failed to award achievements' });
+    }
+  });
+
+  // Increment user stat
+  app.post('/api/user-stats/increment', async (req, res) => {
+    try {
+      const { userId, familyId, stat, amount } = req.body;
+      await storage.incrementUserStat(userId, familyId, stat, amount);
+      
+      // Check for new achievements after stat update
+      const newAchievements = await storage.checkAndAwardAchievements(userId, familyId, stat);
+      
+      res.json({ success: true, newAchievements });
+    } catch (error) {
+      console.error('Error incrementing user stat:', error);
+      res.status(500).json({ message: 'Failed to increment user stat' });
+    }
+  });
+
+  // Update cooking streak
+  app.post('/api/cooking-streaks/update', async (req, res) => {
+    try {
+      const { userId, familyId, streakType } = req.body;
+      const streak = await storage.updateCookingStreak(userId, familyId, streakType);
+      
+      // Check for streak-based achievements
+      const newAchievements = await storage.checkAndAwardAchievements(userId, familyId, 'streak');
+      
+      res.json({ streak, newAchievements });
+    } catch (error) {
+      console.error('Error updating cooking streak:', error);
+      res.status(500).json({ message: 'Failed to update cooking streak' });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
