@@ -33,6 +33,12 @@ export const users = pgTable("users", {
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
+  bio: text("bio"),
+  cookingSkillLevel: varchar("cooking_skill_level", { enum: ["beginner", "intermediate", "advanced", "expert"] }),
+  preferredDifficulty: varchar("preferred_difficulty", { enum: ["easy", "medium", "hard", "any"] }),
+  favoriteCuisine: varchar("favorite_cuisine"),
+  dietaryRestrictions: text("dietary_restrictions").array(),
+  allergies: text("allergies").array(),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -41,6 +47,11 @@ export const users = pgTable("users", {
 export const families = pgTable("families", {
   id: serial("id").primaryKey(),
   name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+  familyImageUrl: varchar("family_image_url"),
+  timezone: varchar("timezone").default("America/New_York"),
+  currency: varchar("currency").default("USD"),
+  weekStartsOn: varchar("week_starts_on", { enum: ["sunday", "monday"] }).default("sunday"),
   createdBy: varchar("created_by").notNull().references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -53,8 +64,11 @@ export const familyMemberships = pgTable("family_memberships", {
   userId: varchar("user_id").notNull().references(() => users.id),
   role: varchar("role", { length: 50 }).notNull().default("member"), // admin, member
   displayName: varchar("display_name", { length: 255 }),
+  memberImageUrl: varchar("member_image_url"),
   foodPreferences: text("food_preferences").array(),
   allergies: text("allergies").array(),
+  dietType: varchar("diet_type"),
+  favoriteFoods: text("favorite_foods").array(),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -539,3 +553,118 @@ export type ChallengeParticipant = typeof challengeParticipants.$inferSelect;
 export type InsertChallengeParticipant = typeof challengeParticipants.$inferInsert;
 export type UserStats = typeof userStats.$inferSelect;
 export type InsertUserStats = typeof userStats.$inferInsert;
+
+// Family addresses table
+export const familyAddresses = pgTable("family_addresses", {
+  id: serial("id").primaryKey(),
+  familyId: integer("family_id").notNull().references(() => families.id),
+  addressType: varchar("address_type", { enum: ["home", "work", "other"] }).default("home"),
+  label: varchar("label"),
+  street: varchar("street").notNull(),
+  city: varchar("city").notNull(),
+  state: varchar("state").notNull(),
+  zipCode: varchar("zip_code").notNull(),
+  country: varchar("country").default("US"),
+  isDefault: boolean("is_default").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Family meal times table
+export const familyMealTimes = pgTable("family_meal_times", {
+  id: serial("id").primaryKey(),
+  familyId: integer("family_id").notNull().references(() => families.id),
+  mealName: varchar("meal_name").notNull(),
+  defaultTime: varchar("default_time"),
+  daysOfWeek: text("days_of_week").array(),
+  isActive: boolean("is_active").default(true),
+  sortOrder: integer("sort_order").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Shopping site preferences table
+export const shoppingSitePreferences = pgTable("shopping_site_preferences", {
+  id: serial("id").primaryKey(),
+  familyId: integer("family_id").notNull().references(() => families.id),
+  siteName: varchar("site_name").notNull(),
+  siteUrl: varchar("site_url"),
+  accountEmail: varchar("account_email"),
+  deliveryPreferences: jsonb("delivery_preferences"),
+  isDefault: boolean("is_default").default(false),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// User preferences table
+export const userPreferences = pgTable("user_preferences", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  emailNotifications: boolean("email_notifications").default(true),
+  pushNotifications: boolean("push_notifications").default(true),
+  mealReminders: boolean("meal_reminders").default(true),
+  shoppingListUpdates: boolean("shopping_list_updates").default(true),
+  achievementAlerts: boolean("achievement_alerts").default(true),
+  familyInvitations: boolean("family_invitations").default(true),
+  profileVisibility: varchar("profile_visibility", { enum: ["public", "family", "private"] }).default("family"),
+  shareRecipes: boolean("share_recipes").default(true),
+  shareMealPlans: boolean("share_meal_plans").default(true),
+  shareAchievements: boolean("share_achievements").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Family preferences table
+export const familyPreferences = pgTable("family_preferences", {
+  id: serial("id").primaryKey(),
+  familyId: integer("family_id").notNull().references(() => families.id),
+  allowGuestAccess: boolean("allow_guest_access").default(false),
+  requireApprovalForNewRecipes: boolean("require_approval_for_new_recipes").default(false),
+  sharedShoppingLists: boolean("shared_shopping_lists").default(true),
+  sharedMealPlanning: boolean("shared_meal_planning").default(true),
+  automaticNutritionTracking: boolean("automatic_nutrition_tracking").default(false),
+  enableAchievements: boolean("enable_achievements").default(true),
+  defaultMealPlanVisibility: varchar("default_meal_plan_visibility", { enum: ["private", "family", "public"] }).default("family"),
+  budgetTracking: boolean("budget_tracking").default(false),
+  monthlyBudget: decimal("monthly_budget", { precision: 10, scale: 2 }),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Insert schemas for new tables
+export const insertFamilyAddressSchema = createInsertSchema(familyAddresses).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertFamilyMealTimeSchema = createInsertSchema(familyMealTimes).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertShoppingSitePreferenceSchema = createInsertSchema(shoppingSitePreferences).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertUserPreferencesSchema = createInsertSchema(userPreferences).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertFamilyPreferencesSchema = createInsertSchema(familyPreferences).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// Types for new tables
+export type FamilyAddress = typeof familyAddresses.$inferSelect;
+export type InsertFamilyAddress = z.infer<typeof insertFamilyAddressSchema>;
+export type FamilyMealTime = typeof familyMealTimes.$inferSelect;
+export type InsertFamilyMealTime = z.infer<typeof insertFamilyMealTimeSchema>;
+export type ShoppingSitePreference = typeof shoppingSitePreferences.$inferSelect;
+export type InsertShoppingSitePreference = z.infer<typeof insertShoppingSitePreferenceSchema>;
+export type UserPreferences = typeof userPreferences.$inferSelect;
+export type InsertUserPreferences = z.infer<typeof insertUserPreferencesSchema>;
+export type FamilyPreferences = typeof familyPreferences.$inferSelect;
+export type InsertFamilyPreferences = z.infer<typeof insertFamilyPreferencesSchema>;

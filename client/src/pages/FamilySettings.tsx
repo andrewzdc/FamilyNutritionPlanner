@@ -74,7 +74,8 @@ export default function FamilySettings() {
   });
 
   // Get current user's role in family
-  const currentUserMembership = familyMembers.find((member: FamilyMembership) => member.userId === user?.id);
+  const currentUserMembership = Array.isArray(familyMembers) ? 
+    familyMembers.find((member: any) => member.userId === user?.id) : null;
   const isAdmin = currentUserMembership?.role === 'admin';
 
   const familyForm = useForm<FamilyFormData>({
