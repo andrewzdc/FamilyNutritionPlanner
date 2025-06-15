@@ -907,6 +907,155 @@ export class DatabaseStorage implements IStorage {
       .where(eq(familyMemberships.id, memberId));
     return (result.rowCount || 0) > 0;
   }
+
+  // Family addresses operations
+  async getFamilyAddresses(familyId: number): Promise<any[]> {
+    const addresses = await db
+      .select()
+      .from(familyAddresses)
+      .where(eq(familyAddresses.familyId, familyId))
+      .orderBy(familyAddresses.isPrimary, familyAddresses.createdAt);
+    return addresses;
+  }
+
+  async createFamilyAddress(address: any): Promise<any> {
+    const [newAddress] = await db
+      .insert(familyAddresses)
+      .values({
+        familyId: address.familyId,
+        addressType: address.addressType,
+        streetAddress: address.streetAddress,
+        city: address.city,
+        state: address.state,
+        postalCode: address.postalCode,
+        country: address.country,
+        isPrimary: address.isPrimary || false,
+        deliveryInstructions: address.deliveryInstructions
+      })
+      .returning();
+    return newAddress;
+  }
+
+  async updateFamilyAddress(addressId: number, address: any): Promise<any> {
+    const [updatedAddress] = await db
+      .update(familyAddresses)
+      .set({
+        addressType: address.addressType,
+        streetAddress: address.streetAddress,
+        city: address.city,
+        state: address.state,
+        postalCode: address.postalCode,
+        country: address.country,
+        isPrimary: address.isPrimary,
+        deliveryInstructions: address.deliveryInstructions
+      })
+      .where(eq(familyAddresses.id, addressId))
+      .returning();
+    return updatedAddress;
+  }
+
+  async deleteFamilyAddress(addressId: number): Promise<boolean> {
+    const result = await db
+      .delete(familyAddresses)
+      .where(eq(familyAddresses.id, addressId));
+    return (result.rowCount || 0) > 0;
+  }
+
+  // Family meal times operations
+  async getFamilyMealTimes(familyId: number): Promise<any[]> {
+    const mealTimes = await db
+      .select()
+      .from(familyMealTimes)
+      .where(eq(familyMealTimes.familyId, familyId))
+      .orderBy(familyMealTimes.timeOfDay);
+    return mealTimes;
+  }
+
+  async createFamilyMealTime(mealTime: any): Promise<any> {
+    const [newMealTime] = await db
+      .insert(familyMealTimes)
+      .values({
+        familyId: mealTime.familyId,
+        mealName: mealTime.mealName,
+        timeOfDay: mealTime.timeOfDay,
+        daysOfWeek: mealTime.daysOfWeek,
+        isActive: mealTime.isActive ?? true
+      })
+      .returning();
+    return newMealTime;
+  }
+
+  async updateFamilyMealTime(mealTimeId: number, mealTime: any): Promise<any> {
+    const [updatedMealTime] = await db
+      .update(familyMealTimes)
+      .set({
+        mealName: mealTime.mealName,
+        timeOfDay: mealTime.timeOfDay,
+        daysOfWeek: mealTime.daysOfWeek,
+        isActive: mealTime.isActive
+      })
+      .where(eq(familyMealTimes.id, mealTimeId))
+      .returning();
+    return updatedMealTime;
+  }
+
+  async deleteFamilyMealTime(mealTimeId: number): Promise<boolean> {
+    const result = await db
+      .delete(familyMealTimes)
+      .where(eq(familyMealTimes.id, mealTimeId));
+    return (result.rowCount || 0) > 0;
+  }
+
+  // Shopping site preferences operations
+  async getShoppingSitePreferences(familyId: number): Promise<any[]> {
+    const sites = await db
+      .select()
+      .from(shoppingSitePreferences)
+      .where(eq(shoppingSitePreferences.familyId, familyId))
+      .orderBy(shoppingSitePreferences.isPrimary, shoppingSitePreferences.siteName);
+    return sites;
+  }
+
+  async createShoppingSitePreference(site: any): Promise<any> {
+    const [newSite] = await db
+      .insert(shoppingSitePreferences)
+      .values({
+        familyId: site.familyId,
+        siteName: site.siteName,
+        siteUrl: site.siteUrl,
+        apiKey: site.apiKey,
+        username: site.username,
+        isPrimary: site.isPrimary || false,
+        deliveryFeeThreshold: site.deliveryFeeThreshold,
+        preferredDeliveryTime: site.preferredDeliveryTime
+      })
+      .returning();
+    return newSite;
+  }
+
+  async updateShoppingSitePreference(siteId: number, site: any): Promise<any> {
+    const [updatedSite] = await db
+      .update(shoppingSitePreferences)
+      .set({
+        siteName: site.siteName,
+        siteUrl: site.siteUrl,
+        apiKey: site.apiKey,
+        username: site.username,
+        isPrimary: site.isPrimary,
+        deliveryFeeThreshold: site.deliveryFeeThreshold,
+        preferredDeliveryTime: site.preferredDeliveryTime
+      })
+      .where(eq(shoppingSitePreferences.id, siteId))
+      .returning();
+    return updatedSite;
+  }
+
+  async deleteShoppingSitePreference(siteId: number): Promise<boolean> {
+    const result = await db
+      .delete(shoppingSitePreferences)
+      .where(eq(shoppingSitePreferences.id, siteId));
+    return (result.rowCount || 0) > 0;
+  }
 }
 
 export const storage = new DatabaseStorage();
