@@ -12,7 +12,7 @@ import Shopping from "@/pages/Shopping";
 import Orders from "@/pages/Orders";
 import Achievements from "@/pages/Achievements";
 import ProfileSettings from "@/pages/ProfileSettings";
-import FamilySettings from "@/pages/FamilySettings";
+import FamilySettings from "@/pages/EnhancedFamilySettings";
 import Navigation from "@/components/Navigation";
 import { FamilyProvider } from "@/contexts/FamilyContext";
 import { UserProvider } from "@/contexts/UserContext";

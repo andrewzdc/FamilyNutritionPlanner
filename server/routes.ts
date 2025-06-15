@@ -954,6 +954,153 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Family addresses routes
+  app.get('/api/families/:familyId/addresses', async (req, res) => {
+    try {
+      const familyId = parseInt(req.params.familyId);
+      const addresses = await storage.getFamilyAddresses(familyId);
+      res.json(addresses);
+    } catch (error) {
+      console.error('Error fetching family addresses:', error);
+      res.status(500).json({ message: 'Failed to fetch family addresses' });
+    }
+  });
+
+  app.post('/api/families/:familyId/addresses', async (req, res) => {
+    try {
+      const familyId = parseInt(req.params.familyId);
+      const address = await storage.createFamilyAddress({ ...req.body, familyId });
+      res.json(address);
+    } catch (error) {
+      console.error('Error creating family address:', error);
+      res.status(500).json({ message: 'Failed to create family address' });
+    }
+  });
+
+  app.patch('/api/families/:familyId/addresses/:addressId', async (req, res) => {
+    try {
+      const addressId = parseInt(req.params.addressId);
+      const address = await storage.updateFamilyAddress(addressId, req.body);
+      res.json(address);
+    } catch (error) {
+      console.error('Error updating family address:', error);
+      res.status(500).json({ message: 'Failed to update family address' });
+    }
+  });
+
+  app.delete('/api/families/:familyId/addresses/:addressId', async (req, res) => {
+    try {
+      const addressId = parseInt(req.params.addressId);
+      const success = await storage.deleteFamilyAddress(addressId);
+      if (success) {
+        res.json({ message: 'Address deleted successfully' });
+      } else {
+        res.status(404).json({ message: 'Address not found' });
+      }
+    } catch (error) {
+      console.error('Error deleting family address:', error);
+      res.status(500).json({ message: 'Failed to delete family address' });
+    }
+  });
+
+  // Family meal times routes
+  app.get('/api/families/:familyId/meal-times', async (req, res) => {
+    try {
+      const familyId = parseInt(req.params.familyId);
+      const mealTimes = await storage.getFamilyMealTimes(familyId);
+      res.json(mealTimes);
+    } catch (error) {
+      console.error('Error fetching family meal times:', error);
+      res.status(500).json({ message: 'Failed to fetch family meal times' });
+    }
+  });
+
+  app.post('/api/families/:familyId/meal-times', async (req, res) => {
+    try {
+      const familyId = parseInt(req.params.familyId);
+      const mealTime = await storage.createFamilyMealTime({ ...req.body, familyId });
+      res.json(mealTime);
+    } catch (error) {
+      console.error('Error creating family meal time:', error);
+      res.status(500).json({ message: 'Failed to create family meal time' });
+    }
+  });
+
+  app.patch('/api/families/:familyId/meal-times/:mealTimeId', async (req, res) => {
+    try {
+      const mealTimeId = parseInt(req.params.mealTimeId);
+      const mealTime = await storage.updateFamilyMealTime(mealTimeId, req.body);
+      res.json(mealTime);
+    } catch (error) {
+      console.error('Error updating family meal time:', error);
+      res.status(500).json({ message: 'Failed to update family meal time' });
+    }
+  });
+
+  app.delete('/api/families/:familyId/meal-times/:mealTimeId', async (req, res) => {
+    try {
+      const mealTimeId = parseInt(req.params.mealTimeId);
+      const success = await storage.deleteFamilyMealTime(mealTimeId);
+      if (success) {
+        res.json({ message: 'Meal time deleted successfully' });
+      } else {
+        res.status(404).json({ message: 'Meal time not found' });
+      }
+    } catch (error) {
+      console.error('Error deleting family meal time:', error);
+      res.status(500).json({ message: 'Failed to delete family meal time' });
+    }
+  });
+
+  // Shopping sites routes
+  app.get('/api/families/:familyId/shopping-sites', async (req, res) => {
+    try {
+      const familyId = parseInt(req.params.familyId);
+      const sites = await storage.getShoppingSitePreferences(familyId);
+      res.json(sites);
+    } catch (error) {
+      console.error('Error fetching shopping sites:', error);
+      res.status(500).json({ message: 'Failed to fetch shopping sites' });
+    }
+  });
+
+  app.post('/api/families/:familyId/shopping-sites', async (req, res) => {
+    try {
+      const familyId = parseInt(req.params.familyId);
+      const site = await storage.createShoppingSitePreference({ ...req.body, familyId });
+      res.json(site);
+    } catch (error) {
+      console.error('Error creating shopping site:', error);
+      res.status(500).json({ message: 'Failed to create shopping site' });
+    }
+  });
+
+  app.patch('/api/families/:familyId/shopping-sites/:siteId', async (req, res) => {
+    try {
+      const siteId = parseInt(req.params.siteId);
+      const site = await storage.updateShoppingSitePreference(siteId, req.body);
+      res.json(site);
+    } catch (error) {
+      console.error('Error updating shopping site:', error);
+      res.status(500).json({ message: 'Failed to update shopping site' });
+    }
+  });
+
+  app.delete('/api/families/:familyId/shopping-sites/:siteId', async (req, res) => {
+    try {
+      const siteId = parseInt(req.params.siteId);
+      const success = await storage.deleteShoppingSitePreference(siteId);
+      if (success) {
+        res.json({ message: 'Shopping site deleted successfully' });
+      } else {
+        res.status(404).json({ message: 'Shopping site not found' });
+      }
+    } catch (error) {
+      console.error('Error deleting shopping site:', error);
+      res.status(500).json({ message: 'Failed to delete shopping site' });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

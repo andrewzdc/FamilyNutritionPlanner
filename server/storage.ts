@@ -149,6 +149,24 @@ export interface IStorage {
   createFamilyInvitation(invitation: any): Promise<any>;
   updateFamilyMemberRole(memberId: number, role: string): Promise<FamilyMembership | undefined>;
   removeFamilyMember(memberId: number): Promise<boolean>;
+  
+  // Family addresses operations
+  getFamilyAddresses(familyId: number): Promise<any[]>;
+  createFamilyAddress(address: any): Promise<any>;
+  updateFamilyAddress(addressId: number, address: any): Promise<any>;
+  deleteFamilyAddress(addressId: number): Promise<boolean>;
+  
+  // Family meal times operations
+  getFamilyMealTimes(familyId: number): Promise<any[]>;
+  createFamilyMealTime(mealTime: any): Promise<any>;
+  updateFamilyMealTime(mealTimeId: number, mealTime: any): Promise<any>;
+  deleteFamilyMealTime(mealTimeId: number): Promise<boolean>;
+  
+  // Shopping site preferences operations
+  getShoppingSitePreferences(familyId: number): Promise<any[]>;
+  createShoppingSitePreference(site: any): Promise<any>;
+  updateShoppingSitePreference(siteId: number, site: any): Promise<any>;
+  deleteShoppingSitePreference(siteId: number): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
