@@ -185,6 +185,88 @@ export const restaurantOrders = pgTable("restaurant_orders", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Gamification tables
+export const achievements = pgTable("achievements", {
+  id: serial("id").primaryKey(),
+  name: varchar("name").notNull(),
+  description: text("description").notNull(),
+  category: varchar("category").notNull(), // cooking, nutrition, planning, social
+  badgeIcon: varchar("badge_icon"), // icon name or emoji
+  badgeColor: varchar("badge_color"), // hex color code
+  difficulty: varchar("difficulty").notNull(), // bronze, silver, gold, platinum
+  points: integer("points").notNull(),
+  requirement: jsonb("requirement").notNull(), // conditions to unlock
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const userAchievements = pgTable("user_achievements", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  achievementId: integer("achievement_id").notNull(),
+  progress: integer("progress").default(0),
+  maxProgress: integer("max_progress").notNull(),
+  isCompleted: boolean("is_completed").default(false),
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const cookingStreaks = pgTable("cooking_streaks", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  familyId: integer("family_id").notNull(),
+  streakType: varchar("streak_type").notNull(), // daily_cooking, recipe_trying, meal_planning
+  currentStreak: integer("current_streak").default(0),
+  longestStreak: integer("longest_streak").default(0),
+  lastActivity: timestamp("last_activity"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const challenges = pgTable("challenges", {
+  id: serial("id").primaryKey(),
+  name: varchar("name").notNull(),
+  description: text("description").notNull(),
+  category: varchar("category").notNull(), // weekly, monthly, seasonal, special
+  startDate: timestamp("start_date").notNull(),
+  endDate: timestamp("end_date").notNull(),
+  requirements: jsonb("requirements").notNull(),
+  rewards: jsonb("rewards").notNull(), // points, badges, special unlocks
+  difficulty: varchar("difficulty").notNull(),
+  maxParticipants: integer("max_participants"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const challengeParticipants = pgTable("challenge_participants", {
+  id: serial("id").primaryKey(),
+  challengeId: integer("challenge_id").notNull(),
+  userId: varchar("user_id").notNull(),
+  familyId: integer("family_id").notNull(),
+  progress: jsonb("progress").default({}),
+  isCompleted: boolean("is_completed").default(false),
+  completedAt: timestamp("completed_at"),
+  rank: integer("rank"),
+  joinedAt: timestamp("joined_at").defaultNow(),
+});
+
+export const userStats = pgTable("user_stats", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  familyId: integer("family_id").notNull(),
+  totalPoints: integer("total_points").default(0),
+  level: integer("level").default(1),
+  recipesCooked: integer("recipes_cooked").default(0),
+  mealsPlanned: integer("meals_planned").default(0),
+  favoriteCuisine: varchar("favorite_cuisine"),
+  cookingSkillLevel: varchar("cooking_skill_level").default("beginner"), // beginner, intermediate, advanced, expert
+  preferredDifficulty: varchar("preferred_difficulty").default("easy"),
+  achievementsUnlocked: integer("achievements_unlocked").default(0),
+  challengesCompleted: integer("challenges_completed").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
   familyMemberships: many(familyMemberships),
@@ -193,6 +275,10 @@ export const usersRelations = relations(users, ({ many }) => ({
   nutritionLogs: many(nutritionLogs),
   createdShoppingLists: many(shoppingLists),
   createdOrders: many(restaurantOrders),
+  userAchievements: many(userAchievements),
+  cookingStreaks: many(cookingStreaks),
+  challengeParticipations: many(challengeParticipants),
+  stats: many(userStats),
 }));
 
 export const familiesRelations = relations(families, ({ one, many }) => ({
@@ -308,6 +394,62 @@ export const restaurantOrdersRelations = relations(restaurantOrders, ({ one }) =
   }),
 }));
 
+export const achievementsRelations = relations(achievements, ({ many }) => ({
+  userAchievements: many(userAchievements),
+}));
+
+export const userAchievementsRelations = relations(userAchievements, ({ one }) => ({
+  user: one(users, {
+    fields: [userAchievements.userId],
+    references: [users.id],
+  }),
+  achievement: one(achievements, {
+    fields: [userAchievements.achievementId],
+    references: [achievements.id],
+  }),
+}));
+
+export const cookingStreaksRelations = relations(cookingStreaks, ({ one }) => ({
+  user: one(users, {
+    fields: [cookingStreaks.userId],
+    references: [users.id],
+  }),
+  family: one(families, {
+    fields: [cookingStreaks.familyId],
+    references: [families.id],
+  }),
+}));
+
+export const challengesRelations = relations(challenges, ({ many }) => ({
+  participants: many(challengeParticipants),
+}));
+
+export const challengeParticipantsRelations = relations(challengeParticipants, ({ one }) => ({
+  challenge: one(challenges, {
+    fields: [challengeParticipants.challengeId],
+    references: [challenges.id],
+  }),
+  user: one(users, {
+    fields: [challengeParticipants.userId],
+    references: [users.id],
+  }),
+  family: one(families, {
+    fields: [challengeParticipants.familyId],
+    references: [families.id],
+  }),
+}));
+
+export const userStatsRelations = relations(userStats, ({ one }) => ({
+  user: one(users, {
+    fields: [userStats.userId],
+    references: [users.id],
+  }),
+  family: one(families, {
+    fields: [userStats.familyId],
+    references: [families.id],
+  }),
+}));
+
 // Insert schemas
 export const insertFamilySchema = createInsertSchema(families).omit({
   id: true,
@@ -384,3 +526,16 @@ export type RestaurantOrder = typeof restaurantOrders.$inferSelect;
 
 export type PantryItem = typeof pantryItems.$inferSelect;
 export type InsertPantryItem = typeof pantryItems.$inferInsert;
+
+export type Achievement = typeof achievements.$inferSelect;
+export type InsertAchievement = typeof achievements.$inferInsert;
+export type UserAchievement = typeof userAchievements.$inferSelect;
+export type InsertUserAchievement = typeof userAchievements.$inferInsert;
+export type CookingStreak = typeof cookingStreaks.$inferSelect;
+export type InsertCookingStreak = typeof cookingStreaks.$inferInsert;
+export type Challenge = typeof challenges.$inferSelect;
+export type InsertChallenge = typeof challenges.$inferInsert;
+export type ChallengeParticipant = typeof challengeParticipants.$inferSelect;
+export type InsertChallengeParticipant = typeof challengeParticipants.$inferInsert;
+export type UserStats = typeof userStats.$inferSelect;
+export type InsertUserStats = typeof userStats.$inferInsert;
