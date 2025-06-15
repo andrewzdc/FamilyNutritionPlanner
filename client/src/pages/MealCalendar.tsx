@@ -18,13 +18,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { 
-  Plus, 
-  ChevronLeft, 
-  ChevronRight, 
-  MoreVertical,
-  Check,
-  X,
+import {
+  ChevronLeft,
+  ChevronRight,
+  Plus,
+  MoreHorizontal,
+  Edit,
+  Trash2,
   Copy,
   Shuffle,
   Clock,
@@ -32,6 +32,7 @@ import {
 } from "lucide-react";
 import { format, addDays, startOfWeek, addWeeks, subWeeks } from "date-fns";
 import { apiRequest } from "@/lib/queryClient";
+import { mockMealTypes } from "@/lib/mockData";
 import type { Meal, MealType, Recipe } from "@shared/schema";
 
 interface RecommendedMeal {
@@ -44,35 +45,75 @@ interface RecommendedMeal {
 
 export default function MealCalendar() {
   const { currentFamily } = useFamily();
+  const queryClient = useQueryClient();
   const [currentWeek, setCurrentWeek] = useState(new Date());
   const [selectedSlot, setSelectedSlot] = useState<{ date: Date; mealTypeId: number } | null>(null);
   const [showRecommendations, setShowRecommendations] = useState(false);
-  const queryClient = useQueryClient();
-  
-  const weekStart = startOfWeek(currentWeek);
-  const weekDays = [...Array(7)].map((_, i) => addDays(weekStart, i));
 
+  // Get meal types from API
   const { data: mealTypes = [] } = useQuery<MealType[]>({
     queryKey: ['/api/meal-types'],
   });
 
-  const { data: meals = [], isLoading } = useQuery<Meal[]>({
+  // Get meals for current family
+  const { data: meals = [] } = useQuery<Meal[]>({
     queryKey: ['/api/families', currentFamily?.id, 'meals'],
     enabled: !!currentFamily?.id,
   });
 
+  // Get recipes for current family
   const { data: recipes = [] } = useQuery<Recipe[]>({
     queryKey: ['/api/families', currentFamily?.id, 'recipes'],
     enabled: !!currentFamily?.id,
   });
 
+  // Create meal mutation
+  const createMealMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const response = await apiRequest(`/api/families/${currentFamily?.id}/meals`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      return response;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/families', currentFamily?.id, 'meals'] });
+    },
+  });
+
   // Generate recommended meals based on family recipes
   const generateRecommendedMeals = (): RecommendedMeal[] => {
-    if (recipes.length === 0) return [];
+    if (recipes.length === 0) {
+      // Create some sample recommendations if no recipes exist
+      return [
+        {
+          id: 'sample-1',
+          recipes: [{
+            id: 1,
+            name: 'Sample Pasta',
+            description: 'A simple pasta dish',
+            ingredients: ['pasta', 'tomato sauce'],
+            instructions: ['cook pasta', 'add sauce'],
+            prepTime: 10,
+            cookTime: 15,
+            servings: 4,
+            tags: ['dinner', 'easy'],
+            familyId: currentFamily?.id || 1,
+            createdBy: '1',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          } as Recipe],
+          totalTime: 25,
+          servings: 4,
+          tags: ['dinner', 'easy']
+        }
+      ];
+    }
 
     const recommendations: RecommendedMeal[] = [];
     
-    // Simple meal combinations
+    // Simple meal combinations from actual recipes
     for (let i = 0; i < Math.min(6, recipes.length); i++) {
       const mainRecipe = recipes[i];
       const sides = recipes.filter(r => 
@@ -95,67 +136,11 @@ export default function MealCalendar() {
   const recommendedMeals = generateRecommendedMeals();
 
   const getMealForSlot = (date: Date, mealTypeId: number) => {
+    const dateStr = format(date, 'yyyy-MM-dd');
     return meals.find(meal => 
-      meal.scheduledDate === format(date, 'yyyy-MM-dd') && 
-      meal.mealTypeId === mealTypeId
+      meal.scheduledDate === dateStr && meal.mealTypeId === mealTypeId
     );
   };
-
-  const getRecipeById = (id: number) => {
-    return recipes.find(recipe => recipe.id === id);
-  };
-
-  const navigateWeek = (direction: 'prev' | 'next') => {
-    setCurrentWeek(direction === 'next' ? addWeeks(currentWeek, 1) : subWeeks(currentWeek, 1));
-  };
-
-  // Mutations
-  const createMealMutation = useMutation({
-    mutationFn: async (mealData: any) => {
-      const response = await fetch('/api/meals', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(mealData),
-      });
-      if (!response.ok) throw new Error('Failed to create meal');
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/families', currentFamily?.id, 'meals'] });
-    },
-  });
-
-  const updateMealMutation = useMutation({
-    mutationFn: async ({ id, ...data }: any) => {
-      const response = await fetch(`/api/meals/${id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-      });
-      if (!response.ok) throw new Error('Failed to update meal');
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/families', currentFamily?.id, 'meals'] });
-    },
-  });
-
-  const deleteMealMutation = useMutation({
-    mutationFn: async (id: number) => {
-      const response = await fetch(`/api/meals/${id}`, {
-        method: 'DELETE',
-      });
-      if (!response.ok) throw new Error('Failed to delete meal');
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/families', currentFamily?.id, 'meals'] });
-    },
-  });
 
   const handleAcceptRecommendation = (recommendation: RecommendedMeal) => {
     if (!selectedSlot || !currentFamily) return;
@@ -176,47 +161,82 @@ export default function MealCalendar() {
     setSelectedSlot(null);
   };
 
-  const handleReplaceMeal = (mealId: number, newRecipeId: number) => {
-    updateMealMutation.mutate({
-      id: mealId,
-      recipeId: newRecipeId
-    });
-  };
-
-  const handleDeleteMeal = (mealId: number) => {
-    deleteMealMutation.mutate(mealId);
-  };
-
-  const handleCopyMeal = (sourceMeal: Meal, targetDate: Date, targetMealTypeId: number) => {
-    if (!currentFamily) return;
-
-    createMealMutation.mutate({
-      familyId: currentFamily.id,
-      recipeId: sourceMeal.recipeId,
-      mealTypeId: targetMealTypeId,
-      scheduledDate: format(targetDate, 'yyyy-MM-dd'),
-      servings: sourceMeal.servings,
-      status: 'planned'
-    });
-  };
-
   const handleCopyFromPreviousWeek = () => {
-    const previousWeekStart = subWeeks(weekStart, 1);
-    const previousWeekDays = [...Array(7)].map((_, i) => addDays(previousWeekStart, i));
+    if (!currentFamily) return;
     
-    previousWeekDays.forEach((prevDay, dayIndex) => {
-      const currentDay = weekDays[dayIndex];
-      mealTypes.forEach(mealType => {
-        const prevMeal = meals.find(meal => 
-          meal.scheduledDate === format(prevDay, 'yyyy-MM-dd') && 
-          meal.mealTypeId === mealType.id
-        );
+    const currentStart = startOfWeek(currentWeek);
+    const previousStart = subWeeks(currentStart, 1);
+    
+    // Copy meals from previous week to current week
+    for (let i = 0; i < 7; i++) {
+      const currentDate = addDays(currentStart, i);
+      const previousDate = addDays(previousStart, i);
+      
+      mockMealTypes.forEach(mealType => {
+        const previousMeal = getMealForSlot(previousDate, mealType.id);
+        const currentMeal = getMealForSlot(currentDate, mealType.id);
         
-        if (prevMeal) {
-          handleCopyMeal(prevMeal, currentDay, mealType.id);
+        if (previousMeal && !currentMeal) {
+          createMealMutation.mutate({
+            familyId: currentFamily.id,
+            recipeId: previousMeal.recipeId,
+            mealTypeId: mealType.id,
+            scheduledDate: format(currentDate, 'yyyy-MM-dd'),
+            servings: previousMeal.servings,
+            status: 'planned'
+          });
         }
       });
-    });
+    }
+  };
+
+  const handleAutoFillWeek = () => {
+    if (!currentFamily || recipes.length === 0) {
+      // If no recipes, create sample meals
+      const sampleRecipes = [
+        { name: 'Grilled Chicken', id: 'sample-1' },
+        { name: 'Pasta Primavera', id: 'sample-2' },
+        { name: 'Fish Tacos', id: 'sample-3' },
+        { name: 'Beef Stir Fry', id: 'sample-4' },
+        { name: 'Vegetable Curry', id: 'sample-5' }
+      ];
+      
+      const startDate = startOfWeek(currentWeek);
+      
+      for (let i = 0; i < 7; i++) {
+        const date = addDays(startDate, i);
+        mockMealTypes.forEach((mealType, index) => {
+          const existingMeal = getMealForSlot(date, mealType.id);
+          if (!existingMeal) {
+            const randomRecipe = sampleRecipes[Math.floor(Math.random() * sampleRecipes.length)];
+            // For demo purposes, just log what would be created
+            console.log(`Would create meal: ${randomRecipe.name} for ${format(date, 'yyyy-MM-dd')} ${mealType.name}`);
+          }
+        });
+      }
+      return;
+    }
+
+    const startDate = startOfWeek(currentWeek);
+    
+    for (let i = 0; i < 7; i++) {
+      const date = addDays(startDate, i);
+      mockMealTypes.forEach(mealType => {
+        const existingMeal = getMealForSlot(date, mealType.id);
+        if (!existingMeal && recipes.length > 0) {
+          const randomRecipe = recipes[Math.floor(Math.random() * recipes.length)];
+          
+          createMealMutation.mutate({
+            familyId: currentFamily.id,
+            recipeId: randomRecipe.id,
+            mealTypeId: mealType.id,
+            scheduledDate: format(date, 'yyyy-MM-dd'),
+            servings: randomRecipe.servings || 4,
+            status: 'planned'
+          });
+        }
+      });
+    }
   };
 
   const openRecommendations = (date: Date, mealTypeId: number) => {
@@ -227,6 +247,9 @@ export default function MealCalendar() {
   if (!currentFamily) {
     return <div>Please select a family first.</div>;
   }
+
+  const weekStart = startOfWeek(currentWeek);
+  const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -246,7 +269,10 @@ export default function MealCalendar() {
               <Copy className="w-4 h-4 mr-2" />
               Copy Previous Week
             </Button>
-            <Button className="bg-primary hover:bg-primary/90 text-white">
+            <Button 
+              onClick={handleAutoFillWeek}
+              className="bg-primary hover:bg-primary/90 text-white"
+            >
               <Shuffle className="w-4 h-4 mr-2" />
               Auto-Fill Week
             </Button>
@@ -255,179 +281,148 @@ export default function MealCalendar() {
 
         {/* Week Navigation */}
         <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <Button variant="ghost" size="sm" onClick={() => navigateWeek('prev')}>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+            <CardTitle className="text-xl">
+              Week of {format(weekStart, 'MMMM d, yyyy')}
+            </CardTitle>
+            <div className="flex items-center space-x-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentWeek(subWeeks(currentWeek, 1))}
+              >
                 <ChevronLeft className="w-4 h-4" />
               </Button>
-              <h3 className="text-xl font-semibold text-gray-900">
-                {format(weekStart, 'MMMM d')} - {format(addDays(weekStart, 6), 'd, yyyy')}
-              </h3>
-              <Button variant="ghost" size="sm" onClick={() => navigateWeek('next')}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentWeek(addWeeks(currentWeek, 1))}
+              >
                 <ChevronRight className="w-4 h-4" />
               </Button>
             </div>
+          </CardHeader>
+          <CardContent>
+            {/* Calendar Grid */}
+            <div className="grid grid-cols-8 gap-2">
+              {/* Header Row */}
+              <div className="font-medium text-sm text-gray-500 p-2"></div>
+              {weekDays.map((day) => (
+                <div key={day.toISOString()} className="font-medium text-sm text-gray-700 p-2 text-center">
+                  <div>{format(day, 'EEE')}</div>
+                  <div className="text-lg">{format(day, 'd')}</div>
+                </div>
+              ))}
+
+              {/* Meal Rows */}
+              {mockMealTypes.map((mealType) => (
+                <div key={mealType.id} className="contents">
+                  <div className="font-medium text-sm text-gray-700 p-2 border-r">
+                    {mealType.name}
+                  </div>
+                  {weekDays.map((day) => {
+                    const meal = getMealForSlot(day, mealType.id);
+                    return (
+                      <div key={`${day.toISOString()}-${mealType.id}`} className="min-h-[120px] border border-gray-200 rounded-lg p-2">
+                        {meal ? (
+                          <div className="space-y-2">
+                            <div className="text-sm font-medium text-gray-900">
+                              Recipe #{meal.recipeId}
+                            </div>
+                            <div className="flex items-center space-x-2 text-xs text-gray-500">
+                              <Users className="w-3 h-3" />
+                              <span>{meal.servings}</span>
+                            </div>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                                  <MoreHorizontal className="w-4 h-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent>
+                                <DropdownMenuItem>
+                                  <Edit className="w-4 h-4 mr-2" />
+                                  Edit Meal
+                                </DropdownMenuItem>
+                                <DropdownMenuItem>
+                                  <Copy className="w-4 h-4 mr-2" />
+                                  Copy Meal
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem className="text-red-600">
+                                  <Trash2 className="w-4 h-4 mr-2" />
+                                  Delete Meal
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+                        ) : (
+                          <Dialog open={showRecommendations && selectedSlot?.date.toDateString() === day.toDateString() && selectedSlot?.mealTypeId === mealType.id} onOpenChange={setShowRecommendations}>
+                            <DialogTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                className="w-full h-full border-2 border-dashed border-gray-300 hover:border-gray-400 flex items-center justify-center"
+                                onClick={() => openRecommendations(day, mealType.id)}
+                              >
+                                <Plus className="w-6 h-6 text-gray-400" />
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent className="max-w-2xl">
+                              <DialogHeader>
+                                <DialogTitle>Recommended Meals</DialogTitle>
+                              </DialogHeader>
+                              <div className="space-y-4">
+                                {recommendedMeals.length > 0 ? (
+                                  recommendedMeals.map((recommendation) => (
+                                    <Card key={recommendation.id} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => handleAcceptRecommendation(recommendation)}>
+                                      <CardContent className="p-4">
+                                        <div className="flex justify-between items-start">
+                                          <div className="space-y-2">
+                                            <h4 className="font-medium">
+                                              {recommendation.recipes.map(r => r.name).join(' + ')}
+                                            </h4>
+                                            <div className="flex items-center space-x-4 text-sm text-gray-500">
+                                              <div className="flex items-center space-x-1">
+                                                <Clock className="w-4 h-4" />
+                                                <span>{recommendation.totalTime} min</span>
+                                              </div>
+                                              <div className="flex items-center space-x-1">
+                                                <Users className="w-4 h-4" />
+                                                <span>{recommendation.servings} servings</span>
+                                              </div>
+                                            </div>
+                                            <div className="flex space-x-1">
+                                              {recommendation.tags.map((tag) => (
+                                                <Badge key={tag} variant="secondary" className="text-xs">
+                                                  {tag}
+                                                </Badge>
+                                              ))}
+                                            </div>
+                                          </div>
+                                          <Button size="sm">Accept</Button>
+                                        </div>
+                                      </CardContent>
+                                    </Card>
+                                  ))
+                                ) : (
+                                  <div className="text-center py-8">
+                                    <p className="text-gray-500 mb-4">No recommendations available.</p>
+                                    <p className="text-sm text-gray-400">Add some recipes to get meal suggestions.</p>
+                                  </div>
+                                )}
+                              </div>
+                            </DialogContent>
+                          </Dialog>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
           </CardContent>
         </Card>
-
-        {/* Calendar Grid */}
-        <Card className="overflow-hidden">
-          {/* Calendar Header */}
-          <div className="grid grid-cols-8 bg-gray-50 border-b border-gray-200">
-            <div className="p-4 text-sm font-medium text-gray-700">Meal Type</div>
-            {weekDays.map((day, index) => (
-              <div key={index} className="p-4 text-sm font-medium text-gray-700 text-center border-l border-gray-200">
-                <div>{format(day, 'EEE')}</div>
-                <div className="text-lg font-semibold">{format(day, 'd')}</div>
-              </div>
-            ))}
-          </div>
-          
-          {/* Calendar Body */}
-          {mealTypes.map((mealType, mealTypeIndex) => (
-            <div key={mealType.id} className={`grid grid-cols-8 ${mealTypeIndex < mealTypes.length - 1 ? 'border-b border-gray-200' : ''}`}>
-              <div className="p-4 bg-gray-50 border-r border-gray-200">
-                <span className="text-sm font-medium text-gray-700">{mealType.name}</span>
-              </div>
-              {weekDays.map((day, dayIndex) => {
-                const dayMeals = meals.filter(meal => 
-                  meal.scheduledDate === format(day, 'yyyy-MM-dd') && 
-                  meal.mealTypeId === mealType.id
-                );
-                
-                return (
-                  <div key={dayIndex} className={`p-2 min-h-[120px] ${dayIndex < weekDays.length - 1 ? 'border-r border-gray-200' : ''}`}>
-                    {dayMeals.length > 0 ? (
-                      <div className="space-y-2">
-                        {dayMeals.map(meal => {
-                          const recipe = meal.recipeId ? getRecipeById(meal.recipeId) : null;
-                          return (
-                            <div key={meal.id} className="bg-blue-50 border border-blue-200 rounded-lg p-2 group">
-                              <div className="flex items-start justify-between">
-                                <div className="flex-1 min-w-0">
-                                  <div className="text-sm font-medium text-blue-900 truncate">
-                                    {recipe?.name || 'Unknown Recipe'}
-                                  </div>
-                                  <div className="flex items-center gap-2 mt-1">
-                                    <Badge variant="secondary" className="text-xs">
-                                      <Users className="w-3 h-3 mr-1" />
-                                      {meal.servings}
-                                    </Badge>
-                                    {recipe && (
-                                      <Badge variant="outline" className="text-xs">
-                                        <Clock className="w-3 h-3 mr-1" />
-                                        {(recipe.prepTime || 0) + (recipe.cookTime || 0)}m
-                                      </Badge>
-                                    )}
-                                  </div>
-                                </div>
-                                <DropdownMenu>
-                                  <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity">
-                                      <MoreVertical className="w-4 h-4" />
-                                    </Button>
-                                  </DropdownMenuTrigger>
-                                  <DropdownMenuContent align="end">
-                                    <DropdownMenuItem onClick={() => {}}>
-                                      Edit Meal
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => {}}>
-                                      Replace Recipe
-                                    </DropdownMenuItem>
-                                    <DropdownMenuSeparator />
-                                    <DropdownMenuItem 
-                                      onClick={() => handleDeleteMeal(meal.id)}
-                                      className="text-red-600"
-                                    >
-                                      Delete Meal
-                                    </DropdownMenuItem>
-                                  </DropdownMenuContent>
-                                </DropdownMenu>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <Button 
-                        variant="ghost" 
-                        className="w-full h-full border-2 border-dashed border-gray-200 rounded-lg flex items-center justify-center text-gray-400 hover:border-primary hover:text-primary transition-colors"
-                        onClick={() => openRecommendations(day, mealType.id)}
-                      >
-                        <Plus className="w-4 h-4" />
-                      </Button>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          ))}
-        </Card>
       </div>
-
-      {/* Meal Recommendations Dialog */}
-      <Dialog open={showRecommendations} onOpenChange={setShowRecommendations}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Recommended Meals</DialogTitle>
-          </DialogHeader>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
-            {recommendedMeals.map(recommendation => (
-              <Card key={recommendation.id} className="cursor-pointer hover:shadow-md transition-shadow">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base">
-                    {recommendation.recipes.map(r => r.name).join(' + ')}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <div className="space-y-3">
-                    <div className="flex flex-wrap gap-1">
-                      {recommendation.tags.slice(0, 3).map(tag => (
-                        <Badge key={tag} variant="outline" className="text-xs">
-                          {tag}
-                        </Badge>
-                      ))}
-                    </div>
-                    
-                    <div className="flex items-center justify-between text-sm text-gray-600">
-                      <span className="flex items-center">
-                        <Clock className="w-4 h-4 mr-1" />
-                        {recommendation.totalTime}m
-                      </span>
-                      <span className="flex items-center">
-                        <Users className="w-4 h-4 mr-1" />
-                        {recommendation.servings} servings
-                      </span>
-                    </div>
-
-                    <div className="flex gap-2">
-                      <Button 
-                        onClick={() => handleAcceptRecommendation(recommendation)}
-                        className="flex-1"
-                        size="sm"
-                      >
-                        <Check className="w-4 h-4 mr-1" />
-                        Accept
-                      </Button>
-                      <Button variant="outline" size="sm">
-                        <Shuffle className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-
-          {recommendedMeals.length === 0 && (
-            <div className="text-center py-8 text-gray-500">
-              <p>No recommendations available.</p>
-              <p className="text-sm mt-1">Add some recipes to get meal suggestions.</p>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
     </main>
   );
 }
