@@ -210,7 +210,7 @@ export default function AddRecipeModal({ children, defaultTab = "manual", onCrea
           <DialogTitle>Add New Recipe</DialogTitle>
         </DialogHeader>
         
-        <div className="flex-1 overflow-hidden p-6">
+        <div className="flex-1 overflow-hidden flex flex-col p-6">
           {/* Custom Tab Navigation */}
           <div className="border-b border-gray-200 pb-4 mb-4">
             <div className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-9 gap-2">
@@ -234,10 +234,10 @@ export default function AddRecipeModal({ children, defaultTab = "manual", onCrea
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto pr-2">
             {/* Manual Entry Tab */}
             {activeTab === "manual" && (
-              <div className="space-y-6">
+              <div className="space-y-6 pb-4">
                 {/* Basic Info */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
@@ -430,19 +430,7 @@ export default function AddRecipeModal({ children, defaultTab = "manual", onCrea
                   )}
                 </div>
 
-                {/* Submit Button */}
-                <div className="flex justify-end gap-3 pt-4 border-t">
-                  <Button variant="outline" onClick={() => setOpen(false)}>
-                    Cancel
-                  </Button>
-                  <Button 
-                    onClick={handleSubmit}
-                    disabled={!name.trim() || ingredients.filter(i => i.trim()).length === 0 || instructions.filter(i => i.trim()).length === 0}
-                  >
-                    Create Recipe
-                  </Button>
                 </div>
-              </div>
             )}
 
             {/* URL Import Tab */}
@@ -668,6 +656,23 @@ export default function AddRecipeModal({ children, defaultTab = "manual", onCrea
               </div>
             )}
           </div>
+          
+          {/* Fixed Submit Button Area for Manual Tab */}
+          {activeTab === "manual" && (
+            <div className="border-t bg-white p-6">
+              <div className="flex justify-end gap-3">
+                <Button variant="outline" onClick={() => setOpen(false)}>
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={handleSubmit}
+                  disabled={!name.trim() || ingredients.filter(i => i.trim()).length === 0 || instructions.filter(i => i.trim()).length === 0}
+                >
+                  Create Recipe
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       </DialogContent>
     </Dialog>
