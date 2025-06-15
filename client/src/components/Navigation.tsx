@@ -18,7 +18,8 @@ import {
   Calendar,
   BarChart3,
   ShoppingCart,
-  Store
+  Store,
+  Trophy
 } from "lucide-react";
 
 export default function Navigation() {
@@ -33,6 +34,7 @@ export default function Navigation() {
     { path: "/nutrition", label: "Nutrition", icon: BarChart3 },
     { path: "/shopping", label: "Shopping", icon: ShoppingCart },
     { path: "/orders", label: "Orders", icon: Store },
+    { path: "/achievements", label: "Achievements", icon: Trophy },
   ];
 
   const isActive = (path: string) => {

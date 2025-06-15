@@ -10,6 +10,7 @@ import MealCalendar from "@/pages/MealCalendar";
 import Nutrition from "@/pages/Nutrition";
 import Shopping from "@/pages/Shopping";
 import Orders from "@/pages/Orders";
+import Achievements from "@/pages/Achievements";
 import Navigation from "@/components/Navigation";
 import { FamilyProvider } from "@/contexts/FamilyContext";
 import { UserProvider } from "@/contexts/UserContext";
@@ -26,6 +27,7 @@ function Router() {
           <Route path="/nutrition" component={Nutrition} />
           <Route path="/shopping" component={Shopping} />
           <Route path="/orders" component={Orders} />
+          <Route path="/achievements" component={Achievements} />
         </FamilyProvider>
       </UserProvider>
       <Route component={NotFound} />

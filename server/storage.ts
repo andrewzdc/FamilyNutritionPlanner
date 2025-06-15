@@ -118,6 +118,27 @@ export interface IStorage {
   generateShoppingListFromMeals(familyId: number, mealIds: number[]): Promise<{ consolidatedIngredients: any[], existingPantryItems: PantryItem[] }>;
   getShoppingListItemHistory(familyId: number, itemName: string): Promise<ShoppingListItem[]>;
   bulkUpdateShoppingListItems(updates: { id: number; updates: Partial<InsertShoppingListItem> }[]): Promise<ShoppingListItem[]>;
+  
+  // Gamification operations
+  getAllAchievements(): Promise<Achievement[]>;
+  getUserAchievements(userId: string): Promise<UserAchievement[]>;
+  createUserAchievement(achievement: InsertUserAchievement): Promise<UserAchievement>;
+  updateUserAchievementProgress(id: number, progress: number): Promise<UserAchievement | undefined>;
+  completeUserAchievement(id: number): Promise<UserAchievement | undefined>;
+  
+  getUserStats(userId: string, familyId: number): Promise<UserStats | undefined>;
+  createOrUpdateUserStats(stats: InsertUserStats): Promise<UserStats>;
+  incrementUserStat(userId: string, familyId: number, stat: keyof UserStats, amount: number): Promise<void>;
+  
+  getCookingStreaks(userId: string, familyId: number): Promise<CookingStreak[]>;
+  updateCookingStreak(userId: string, familyId: number, streakType: string): Promise<CookingStreak>;
+  
+  getActiveChallenges(): Promise<Challenge[]>;
+  getChallengeParticipants(challengeId: number): Promise<ChallengeParticipant[]>;
+  joinChallenge(data: InsertChallengeParticipant): Promise<ChallengeParticipant>;
+  updateChallengeProgress(participantId: number, progress: any): Promise<ChallengeParticipant | undefined>;
+  
+  checkAndAwardAchievements(userId: string, familyId: number, action: string): Promise<UserAchievement[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -493,6 +514,278 @@ export class DatabaseStorage implements IStorage {
     }
     
     return updatedItems;
+  }
+
+  // Gamification operations
+  async getAllAchievements(): Promise<Achievement[]> {
+    return await db
+      .select()
+      .from(achievements)
+      .where(eq(achievements.isActive, true))
+      .orderBy(asc(achievements.category), asc(achievements.difficulty));
+  }
+
+  async getUserAchievements(userId: string): Promise<UserAchievement[]> {
+    return await db
+      .select()
+      .from(userAchievements)
+      .where(eq(userAchievements.userId, userId))
+      .orderBy(desc(userAchievements.createdAt));
+  }
+
+  async createUserAchievement(achievement: InsertUserAchievement): Promise<UserAchievement> {
+    const [userAchievement] = await db
+      .insert(userAchievements)
+      .values(achievement)
+      .returning();
+    return userAchievement;
+  }
+
+  async updateUserAchievementProgress(id: number, progress: number): Promise<UserAchievement | undefined> {
+    const [userAchievement] = await db
+      .update(userAchievements)
+      .set({ progress })
+      .where(eq(userAchievements.id, id))
+      .returning();
+    return userAchievement;
+  }
+
+  async completeUserAchievement(id: number): Promise<UserAchievement | undefined> {
+    const [userAchievement] = await db
+      .update(userAchievements)
+      .set({ 
+        isCompleted: true,
+        completedAt: new Date()
+      })
+      .where(eq(userAchievements.id, id))
+      .returning();
+    return userAchievement;
+  }
+
+  async getUserStats(userId: string, familyId: number): Promise<UserStats | undefined> {
+    const [stats] = await db
+      .select()
+      .from(userStats)
+      .where(and(
+        eq(userStats.userId, userId),
+        eq(userStats.familyId, familyId)
+      ));
+    return stats;
+  }
+
+  async createOrUpdateUserStats(stats: InsertUserStats): Promise<UserStats> {
+    const existing = await this.getUserStats(stats.userId, stats.familyId);
+    
+    if (existing) {
+      const [updated] = await db
+        .update(userStats)
+        .set({ ...stats, updatedAt: new Date() })
+        .where(and(
+          eq(userStats.userId, stats.userId),
+          eq(userStats.familyId, stats.familyId)
+        ))
+        .returning();
+      return updated;
+    } else {
+      const [created] = await db
+        .insert(userStats)
+        .values(stats)
+        .returning();
+      return created;
+    }
+  }
+
+  async incrementUserStat(userId: string, familyId: number, stat: keyof UserStats, amount: number): Promise<void> {
+    const existing = await this.getUserStats(userId, familyId);
+    
+    if (existing) {
+      const currentValue = (existing[stat] as number) || 0;
+      const updates: Partial<UserStats> = {
+        [stat]: currentValue + amount,
+        updatedAt: new Date()
+      };
+      
+      await db
+        .update(userStats)
+        .set(updates)
+        .where(and(
+          eq(userStats.userId, userId),
+          eq(userStats.familyId, familyId)
+        ));
+    } else {
+      const newStats: InsertUserStats = {
+        userId,
+        familyId,
+        [stat]: amount
+      };
+      await this.createOrUpdateUserStats(newStats);
+    }
+  }
+
+  async getCookingStreaks(userId: string, familyId: number): Promise<CookingStreak[]> {
+    return await db
+      .select()
+      .from(cookingStreaks)
+      .where(and(
+        eq(cookingStreaks.userId, userId),
+        eq(cookingStreaks.familyId, familyId)
+      ));
+  }
+
+  async updateCookingStreak(userId: string, familyId: number, streakType: string): Promise<CookingStreak> {
+    const [existing] = await db
+      .select()
+      .from(cookingStreaks)
+      .where(and(
+        eq(cookingStreaks.userId, userId),
+        eq(cookingStreaks.familyId, familyId),
+        eq(cookingStreaks.streakType, streakType)
+      ));
+
+    const today = new Date();
+    const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000);
+
+    if (existing) {
+      const lastActivity = existing.lastActivity ? new Date(existing.lastActivity) : null;
+      let newStreak = existing.currentStreak;
+
+      if (lastActivity) {
+        const daysDiff = Math.floor((today.getTime() - lastActivity.getTime()) / (24 * 60 * 60 * 1000));
+        
+        if (daysDiff === 1) {
+          // Continue streak
+          newStreak = existing.currentStreak + 1;
+        } else if (daysDiff > 1) {
+          // Reset streak
+          newStreak = 1;
+        }
+        // If daysDiff === 0, don't change streak (same day)
+      } else {
+        newStreak = 1;
+      }
+
+      const longestStreak = Math.max(existing.longestStreak, newStreak);
+
+      const [updated] = await db
+        .update(cookingStreaks)
+        .set({
+          currentStreak: newStreak,
+          longestStreak,
+          lastActivity: today,
+          updatedAt: new Date()
+        })
+        .where(eq(cookingStreaks.id, existing.id))
+        .returning();
+      
+      return updated;
+    } else {
+      const [created] = await db
+        .insert(cookingStreaks)
+        .values({
+          userId,
+          familyId,
+          streakType,
+          currentStreak: 1,
+          longestStreak: 1,
+          lastActivity: today
+        })
+        .returning();
+      
+      return created;
+    }
+  }
+
+  async getActiveChallenges(): Promise<Challenge[]> {
+    const now = new Date();
+    return await db
+      .select()
+      .from(challenges)
+      .where(and(
+        eq(challenges.isActive, true),
+        // TODO: Add proper date comparison operators
+      ));
+  }
+
+  async getChallengeParticipants(challengeId: number): Promise<ChallengeParticipant[]> {
+    return await db
+      .select()
+      .from(challengeParticipants)
+      .where(eq(challengeParticipants.challengeId, challengeId))
+      .orderBy(asc(challengeParticipants.rank));
+  }
+
+  async joinChallenge(data: InsertChallengeParticipant): Promise<ChallengeParticipant> {
+    const [participant] = await db
+      .insert(challengeParticipants)
+      .values(data)
+      .returning();
+    return participant;
+  }
+
+  async updateChallengeProgress(participantId: number, progress: any): Promise<ChallengeParticipant | undefined> {
+    const [participant] = await db
+      .update(challengeParticipants)
+      .set({ progress })
+      .where(eq(challengeParticipants.id, participantId))
+      .returning();
+    return participant;
+  }
+
+  async checkAndAwardAchievements(userId: string, familyId: number, action: string): Promise<UserAchievement[]> {
+    const userStatsData = await this.getUserStats(userId, familyId);
+    const userAchievements = await this.getUserAchievements(userId);
+    const allAchievements = await this.getAllAchievements();
+    
+    const newAchievements: UserAchievement[] = [];
+    
+    for (const achievement of allAchievements) {
+      // Skip if user already has this achievement
+      const hasAchievement = userAchievements.some(ua => ua.achievementId === achievement.id);
+      if (hasAchievement) continue;
+      
+      // Check achievement requirements
+      const requirement = achievement.requirement as any;
+      let earned = false;
+      
+      switch (achievement.category) {
+        case 'cooking':
+          if (requirement.recipesCooked && userStatsData?.recipesCooked >= requirement.recipesCooked) {
+            earned = true;
+          }
+          break;
+        case 'planning':
+          if (requirement.mealsPlanned && userStatsData?.mealsPlanned >= requirement.mealsPlanned) {
+            earned = true;
+          }
+          break;
+        case 'streak':
+          const streaks = await this.getCookingStreaks(userId, familyId);
+          const relevantStreak = streaks.find(s => s.streakType === requirement.streakType);
+          if (relevantStreak && relevantStreak.currentStreak >= requirement.streakLength) {
+            earned = true;
+          }
+          break;
+      }
+      
+      if (earned) {
+        const newUserAchievement = await this.createUserAchievement({
+          userId,
+          achievementId: achievement.id,
+          progress: requirement.target || 1,
+          maxProgress: requirement.target || 1,
+          isCompleted: true,
+          completedAt: new Date()
+        });
+        
+        // Award points
+        await this.incrementUserStat(userId, familyId, 'totalPoints', achievement.points);
+        await this.incrementUserStat(userId, familyId, 'achievementsUnlocked', 1);
+        
+        newAchievements.push(newUserAchievement);
+      }
+    }
+    
+    return newAchievements;
   }
 }
 
