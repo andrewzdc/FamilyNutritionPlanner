@@ -623,6 +623,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getCookingStreaks(userId: string, familyId: number): Promise<CookingStreak[]> {
+    console.log(userID, familyId);
     return await db
       .select()
       .from(cookingStreaks)
