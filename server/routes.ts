@@ -663,7 +663,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get active challenges
-  app.get('/api/challenges/active', async (req, res) => {
+  app.get('/api/challenges/active', isAuthenticated, async (req, res) => {
     try {
       console.log('Debug - Fetching active challenges...');
       const challenges = await storage.getActiveChallenges();

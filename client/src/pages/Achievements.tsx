@@ -51,9 +51,15 @@ export default function Achievements() {
   });
 
   // Fetch active challenges
-  const { data: activeChallenges = [], isLoading: challengesLoading } = useQuery({
+  const { data: activeChallenges = [], isLoading: challengesLoading, error: challengesError } = useQuery({
     queryKey: ['/api/challenges/active'],
+    enabled: !!currentFamily?.id,
   });
+
+  // Debug logging
+  console.log('Debug - Active challenges data:', activeChallenges);
+  console.log('Debug - Challenges loading:', challengesLoading);
+  console.log('Debug - Challenges error:', challengesError);
 
   // Join challenge mutation
   const joinChallengeMutation = useMutation({
@@ -296,7 +302,11 @@ export default function Achievements() {
             <Target className="h-6 w-6 text-blue-500" />
             Active Challenges
           </h2>
-          {activeChallenges && (
+          {challengesLoading ? (
+            <div className="text-center py-6">Loading challenges...</div>
+          ) : challengesError ? (
+            <div className="text-center py-6 text-red-600">Error loading challenges</div>
+          ) : activeChallenges && activeChallenges.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {activeChallenges.map((challenge: Challenge) => (
                 <Card key={challenge.id}>
@@ -339,6 +349,12 @@ export default function Achievements() {
                   </CardContent>
                 </Card>
               ))}
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <Target className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No Active Challenges</h3>
+              <p className="text-gray-600">Check back later for new challenges to join!</p>
             </div>
           )}
         </TabsContent>
