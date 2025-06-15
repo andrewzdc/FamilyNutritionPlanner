@@ -101,8 +101,12 @@ export default function Navigation() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem>Profile Settings</DropdownMenuItem>
-                <DropdownMenuItem>Family Settings</DropdownMenuItem>
+                <Link href="/profile-settings">
+                  <DropdownMenuItem>Profile Settings</DropdownMenuItem>
+                </Link>
+                <Link href="/family-settings">
+                  <DropdownMenuItem>Family Settings</DropdownMenuItem>
+                </Link>
                 <DropdownMenuItem className="text-red-600">
                   Demo Mode
                 </DropdownMenuItem>

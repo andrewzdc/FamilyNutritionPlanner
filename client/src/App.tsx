@@ -11,6 +11,8 @@ import Nutrition from "@/pages/Nutrition";
 import Shopping from "@/pages/Shopping";
 import Orders from "@/pages/Orders";
 import Achievements from "@/pages/Achievements";
+import ProfileSettings from "@/pages/ProfileSettings";
+import FamilySettings from "@/pages/FamilySettings";
 import Navigation from "@/components/Navigation";
 import { FamilyProvider } from "@/contexts/FamilyContext";
 import { UserProvider } from "@/contexts/UserContext";
@@ -28,6 +30,8 @@ function Router() {
           <Route path="/shopping" component={Shopping} />
           <Route path="/orders" component={Orders} />
           <Route path="/achievements" component={Achievements} />
+          <Route path="/profile-settings" component={ProfileSettings} />
+          <Route path="/family-settings" component={FamilySettings} />
         </FamilyProvider>
       </UserProvider>
       <Route component={NotFound} />

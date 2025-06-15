@@ -821,6 +821,139 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Profile and Settings routes
+  
+  // Get user profile
+  app.get('/api/profile/:userId', async (req, res) => {
+    try {
+      const userId = req.params.userId;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+      res.json(user);
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+      res.status(500).json({ message: 'Failed to fetch user profile' });
+    }
+  });
+
+  // Update user profile
+  app.patch('/api/profile/update', async (req, res) => {
+    try {
+      const { userId, ...profileData } = req.body;
+      const updatedUser = await storage.updateUserProfile(userId, profileData);
+      res.json(updatedUser);
+    } catch (error) {
+      console.error('Error updating user profile:', error);
+      res.status(500).json({ message: 'Failed to update user profile' });
+    }
+  });
+
+  // Get user preferences
+  app.get('/api/preferences/:userId', async (req, res) => {
+    try {
+      const userId = req.params.userId;
+      const preferences = await storage.getUserPreferences(userId);
+      res.json(preferences || {});
+    } catch (error) {
+      console.error('Error fetching user preferences:', error);
+      res.status(500).json({ message: 'Failed to fetch user preferences' });
+    }
+  });
+
+  // Update user preferences
+  app.patch('/api/preferences/update', async (req, res) => {
+    try {
+      const { userId, ...preferencesData } = req.body;
+      const updatedPreferences = await storage.updateUserPreferences(userId, preferencesData);
+      res.json(updatedPreferences);
+    } catch (error) {
+      console.error('Error updating user preferences:', error);
+      res.status(500).json({ message: 'Failed to update user preferences' });
+    }
+  });
+
+  // Get family preferences
+  app.get('/api/families/:familyId/preferences', async (req, res) => {
+    try {
+      const familyId = parseInt(req.params.familyId);
+      const preferences = await storage.getFamilyPreferences(familyId);
+      res.json(preferences || {});
+    } catch (error) {
+      console.error('Error fetching family preferences:', error);
+      res.status(500).json({ message: 'Failed to fetch family preferences' });
+    }
+  });
+
+  // Update family preferences
+  app.patch('/api/families/:familyId/preferences', async (req, res) => {
+    try {
+      const familyId = parseInt(req.params.familyId);
+      const updatedPreferences = await storage.updateFamilyPreferences(familyId, req.body);
+      res.json(updatedPreferences);
+    } catch (error) {
+      console.error('Error updating family preferences:', error);
+      res.status(500).json({ message: 'Failed to update family preferences' });
+    }
+  });
+
+  // Invite family member
+  app.post('/api/families/:familyId/invite', async (req, res) => {
+    try {
+      const familyId = parseInt(req.params.familyId);
+      const { email, role, displayName } = req.body;
+      
+      // In a real app, this would send an email invitation
+      // For now, we'll just create a pending invitation record
+      const invitation = await storage.createFamilyInvitation({
+        familyId,
+        email,
+        role,
+        displayName,
+        invitedBy: req.user?.claims?.sub || 'system',
+        status: 'pending'
+      });
+      
+      res.json(invitation);
+    } catch (error) {
+      console.error('Error sending family invitation:', error);
+      res.status(500).json({ message: 'Failed to send family invitation' });
+    }
+  });
+
+  // Update family member role
+  app.patch('/api/families/:familyId/members/:memberId', async (req, res) => {
+    try {
+      const familyId = parseInt(req.params.familyId);
+      const memberId = parseInt(req.params.memberId);
+      const { role } = req.body;
+      
+      const updatedMember = await storage.updateFamilyMemberRole(memberId, role);
+      res.json(updatedMember);
+    } catch (error) {
+      console.error('Error updating family member role:', error);
+      res.status(500).json({ message: 'Failed to update family member role' });
+    }
+  });
+
+  // Remove family member
+  app.delete('/api/families/:familyId/members/:memberId', async (req, res) => {
+    try {
+      const memberId = parseInt(req.params.memberId);
+      const success = await storage.removeFamilyMember(memberId);
+      
+      if (success) {
+        res.json({ message: 'Family member removed successfully' });
+      } else {
+        res.status(404).json({ message: 'Family member not found' });
+      }
+    } catch (error) {
+      console.error('Error removing family member:', error);
+      res.status(500).json({ message: 'Failed to remove family member' });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

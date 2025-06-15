@@ -139,6 +139,16 @@ export interface IStorage {
   updateChallengeProgress(participantId: number, progress: any): Promise<ChallengeParticipant | undefined>;
   
   checkAndAwardAchievements(userId: string, familyId: number, action: string): Promise<UserAchievement[]>;
+  
+  // Profile and settings operations
+  updateUserProfile(userId: string, profileData: any): Promise<User>;
+  getUserPreferences(userId: string): Promise<any>;
+  updateUserPreferences(userId: string, preferences: any): Promise<any>;
+  getFamilyPreferences(familyId: number): Promise<any>;
+  updateFamilyPreferences(familyId: number, preferences: any): Promise<any>;
+  createFamilyInvitation(invitation: any): Promise<any>;
+  updateFamilyMemberRole(memberId: number, role: string): Promise<FamilyMembership | undefined>;
+  removeFamilyMember(memberId: number): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -793,6 +803,91 @@ export class DatabaseStorage implements IStorage {
     }
     
     return newAchievements;
+  }
+
+  // Profile and settings operations
+  async updateUserProfile(userId: string, profileData: any): Promise<User> {
+    const [user] = await db
+      .update(users)
+      .set({ 
+        ...profileData, 
+        updatedAt: new Date() 
+      })
+      .where(eq(users.id, userId))
+      .returning();
+    return user;
+  }
+
+  async getUserPreferences(userId: string): Promise<any> {
+    // In a real implementation, this would fetch from a user_preferences table
+    // For now, we'll return default preferences
+    return {
+      emailNotifications: true,
+      pushNotifications: true,
+      mealReminders: true,
+      shoppingListUpdates: true,
+      achievementAlerts: true,
+      familyInvitations: true,
+      profileVisibility: 'family',
+      shareRecipes: true,
+      shareMealPlans: true,
+      shareAchievements: true,
+    };
+  }
+
+  async updateUserPreferences(userId: string, preferences: any): Promise<any> {
+    // In a real implementation, this would update a user_preferences table
+    // For now, we'll just return the preferences as updated
+    return preferences;
+  }
+
+  async getFamilyPreferences(familyId: number): Promise<any> {
+    // In a real implementation, this would fetch from a family_preferences table
+    // For now, we'll return default family preferences
+    return {
+      allowGuestAccess: false,
+      requireApprovalForNewRecipes: false,
+      sharedShoppingLists: true,
+      sharedMealPlanning: true,
+      automaticNutritionTracking: false,
+      enableAchievements: true,
+      defaultMealPlanVisibility: 'family',
+      budgetTracking: false,
+      monthlyBudget: 500,
+    };
+  }
+
+  async updateFamilyPreferences(familyId: number, preferences: any): Promise<any> {
+    // In a real implementation, this would update a family_preferences table
+    // For now, we'll just return the preferences as updated
+    return preferences;
+  }
+
+  async createFamilyInvitation(invitation: any): Promise<any> {
+    // In a real implementation, this would create a family_invitations table entry
+    // For now, we'll return a mock invitation
+    return {
+      id: Math.floor(Math.random() * 1000),
+      ...invitation,
+      createdAt: new Date(),
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+    };
+  }
+
+  async updateFamilyMemberRole(memberId: number, role: string): Promise<FamilyMembership | undefined> {
+    const [member] = await db
+      .update(familyMemberships)
+      .set({ role })
+      .where(eq(familyMemberships.id, memberId))
+      .returning();
+    return member;
+  }
+
+  async removeFamilyMember(memberId: number): Promise<boolean> {
+    const result = await db
+      .delete(familyMemberships)
+      .where(eq(familyMemberships.id, memberId));
+    return (result.rowCount || 0) > 0;
   }
 }
 
