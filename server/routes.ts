@@ -246,6 +246,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.patch('/api/meals/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const mealId = parseInt(req.params.id);
+      
+      // First get the meal to check family membership
+      const meal = await storage.getMealById(mealId);
+      if (!meal) {
+        return res.status(404).json({ message: "Meal not found" });
+      }
+      
+      // Check if user is member of the family
+      const membership = await storage.getUserFamilyMembership(userId, meal.familyId);
+      if (!membership) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const updatedMeal = await storage.updateMeal(mealId, req.body);
+      res.json(updatedMeal);
+    } catch (error) {
+      console.error("Error updating meal:", error);
+      res.status(500).json({ message: "Failed to update meal" });
+    }
+  });
+
+  app.delete('/api/meals/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const mealId = parseInt(req.params.id);
+      
+      // First get the meal to check family membership
+      const meal = await storage.getMealById(mealId);
+      if (!meal) {
+        return res.status(404).json({ message: "Meal not found" });
+      }
+      
+      // Check if user is member of the family
+      const membership = await storage.getUserFamilyMembership(userId, meal.familyId);
+      if (!membership) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const success = await storage.deleteMeal(mealId);
+      res.json({ success });
+    } catch (error) {
+      console.error("Error deleting meal:", error);
+      res.status(500).json({ message: "Failed to delete meal" });
+    }
+  });
+
   // Nutrition log routes
   app.post('/api/nutrition-logs', isAuthenticated, async (req: any, res) => {
     try {

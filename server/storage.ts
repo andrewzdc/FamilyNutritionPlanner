@@ -59,6 +59,7 @@ export interface IStorage {
   
   // Meal operations
   createMeal(meal: InsertMeal): Promise<Meal>;
+  getMealById(id: number): Promise<Meal | undefined>;
   getMealsByFamilyId(familyId: number): Promise<Meal[]>;
   getMealsByDateRange(familyId: number, startDate: string, endDate: string): Promise<Meal[]>;
   updateMeal(id: number, meal: Partial<InsertMeal>): Promise<Meal | undefined>;
@@ -199,6 +200,14 @@ export class DatabaseStorage implements IStorage {
   async createMeal(meal: InsertMeal): Promise<Meal> {
     const [newMeal] = await db.insert(meals).values(meal).returning();
     return newMeal;
+  }
+
+  async getMealById(id: number): Promise<Meal | undefined> {
+    const [meal] = await db
+      .select()
+      .from(meals)
+      .where(eq(meals.id, id));
+    return meal || undefined;
   }
 
   async getMealsByFamilyId(familyId: number): Promise<Meal[]> {
