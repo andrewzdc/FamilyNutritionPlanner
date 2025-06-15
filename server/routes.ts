@@ -2,6 +2,8 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
+import { db } from "./db";
+import { challenges } from "@shared/schema";
 import {
   insertFamilySchema,
   insertFamilyMembershipSchema,
@@ -666,9 +668,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/challenges/active', isAuthenticated, async (req, res) => {
     try {
       console.log('Debug - Fetching active challenges...');
-      const challenges = await storage.getActiveChallenges();
-      console.log('Debug - Active challenges found:', challenges.length, challenges);
-      res.json(challenges);
+      
+      // First, let's check all challenges in the database
+      const allChallenges = await db.select().from(challenges);
+      console.log('Debug - All challenges in database:', allChallenges.length, allChallenges);
+      
+      // Then get active challenges
+      const activeChallenges = await storage.getActiveChallenges();
+      console.log('Debug - Active challenges found:', activeChallenges.length, activeChallenges);
+      
+      res.json(activeChallenges);
     } catch (error) {
       console.error('Error fetching active challenges:', error);
       res.status(500).json({ message: 'Failed to fetch active challenges' });
