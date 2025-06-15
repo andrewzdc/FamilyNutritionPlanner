@@ -47,18 +47,18 @@ export default function Recipes() {
   const scrapeUrlMutation = useMutation({
     mutationFn: async ({ url, familyId }: { url: string; familyId: number }) => {
       const response = await apiRequest('POST', '/api/recipes/scrape-url', { url, familyId });
-      return response.json();
-    },
-    onSuccess: (data) => {
+      const data = await response.json();
       if (data.success) {
-        toast({
-          title: "Recipe Scraped",
-          description: "Recipe data extracted successfully! Review and save.",
-        });
-        return data.data;
+        return data;
       } else {
         throw new Error(data.message);
       }
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Recipe Scraped",
+        description: "Recipe data extracted successfully! Review and save.",
+      });
     },
     onError: (error) => {
       toast({
@@ -72,18 +72,18 @@ export default function Recipes() {
   const scrapeVideoMutation = useMutation({
     mutationFn: async ({ url, familyId }: { url: string; familyId: number }) => {
       const response = await apiRequest('POST', '/api/recipes/scrape-video', { url, familyId });
-      return response.json();
-    },
-    onSuccess: (data) => {
+      const data = await response.json();
       if (data.success) {
-        toast({
-          title: "Video Analyzed",
-          description: "Recipe extracted from video successfully!",
-        });
-        return data.data;
+        return data;
       } else {
         throw new Error(data.message);
       }
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Video Analyzed",
+        description: "Recipe extracted from video successfully!",
+      });
     },
     onError: (error) => {
       toast({

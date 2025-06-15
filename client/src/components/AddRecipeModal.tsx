@@ -146,20 +146,36 @@ export default function AddRecipeModal({ children, defaultTab = "manual", onCrea
     if (data.imageUrl) setImageUrl(data.imageUrl);
   };
 
-  const handleUrlScrape = () => {
+  const handleUrlScrape = async () => {
     if (!recipeUrl.trim() || !onScrapeUrl) return;
     
     setUrlLoading(true);
-    onScrapeUrl({ url: recipeUrl, familyId: 1 });
-    setTimeout(() => setUrlLoading(false), 1000);
+    try {
+      const result = await onScrapeUrl({ url: recipeUrl, familyId: 1 });
+      if (result && result.data) {
+        populateFromScrapedData(result.data);
+      }
+    } catch (error) {
+      console.error('Error scraping URL:', error);
+    } finally {
+      setUrlLoading(false);
+    }
   };
 
-  const handleVideoScrape = () => {
+  const handleVideoScrape = async () => {
     if (!videoUrl.trim() || !onScrapeVideo) return;
     
     setVideoLoading(true);
-    onScrapeVideo({ url: videoUrl, familyId: 1 });
-    setTimeout(() => setVideoLoading(false), 1000);
+    try {
+      const result = await onScrapeVideo({ url: videoUrl, familyId: 1 });
+      if (result && result.data) {
+        populateFromScrapedData(result.data);
+      }
+    } catch (error) {
+      console.error('Error scraping video:', error);
+    } finally {
+      setVideoLoading(false);
+    }
   };
 
   const handleSubmit = () => {
@@ -463,6 +479,37 @@ export default function AddRecipeModal({ children, defaultTab = "manual", onCrea
                     <li>• Works with structured recipe data (JSON-LD and microdata)</li>
                   </ul>
                 </div>
+
+                {/* Show imported recipe data if available */}
+                {name && (
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <h4 className="font-medium text-green-900 mb-2">✓ Recipe Imported Successfully</h4>
+                    <p className="text-sm text-green-700 mb-3">
+                      <strong>{name}</strong> - Review the details below and save to your collection.
+                    </p>
+                    <div className="text-sm text-green-600">
+                      <div>Ingredients: {ingredients.filter(i => i.trim()).length}</div>
+                      <div>Instructions: {instructions.filter(i => i.trim()).length} steps</div>
+                      {servings && <div>Servings: {servings}</div>}
+                      {prepTime && cookTime && <div>Total Time: {parseInt(prepTime) + parseInt(cookTime)} minutes</div>}
+                    </div>
+                  </div>
+                )}
+
+                {/* Submit Button for URL tab */}
+                {name && (
+                  <div className="flex justify-end gap-3 pt-4 border-t">
+                    <Button variant="outline" onClick={() => setOpen(false)}>
+                      Cancel
+                    </Button>
+                    <Button 
+                      onClick={handleSubmit}
+                      disabled={!name.trim() || ingredients.filter(i => i.trim()).length === 0 || instructions.filter(i => i.trim()).length === 0}
+                    >
+                      Save Recipe
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
 
@@ -524,6 +571,37 @@ export default function AddRecipeModal({ children, defaultTab = "manual", onCrea
                     <li>• Requires API keys for video processing services</li>
                   </ul>
                 </div>
+
+                {/* Show imported recipe data if available */}
+                {name && (
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <h4 className="font-medium text-green-900 mb-2">✓ Recipe Extracted Successfully</h4>
+                    <p className="text-sm text-green-700 mb-3">
+                      <strong>{name}</strong> - Review the details below and save to your collection.
+                    </p>
+                    <div className="text-sm text-green-600">
+                      <div>Ingredients: {ingredients.filter(i => i.trim()).length}</div>
+                      <div>Instructions: {instructions.filter(i => i.trim()).length} steps</div>
+                      {servings && <div>Servings: {servings}</div>}
+                      {prepTime && cookTime && <div>Total Time: {parseInt(prepTime) + parseInt(cookTime)} minutes</div>}
+                    </div>
+                  </div>
+                )}
+
+                {/* Submit Button for Video tab */}
+                {name && (
+                  <div className="flex justify-end gap-3 pt-4 border-t">
+                    <Button variant="outline" onClick={() => setOpen(false)}>
+                      Cancel
+                    </Button>
+                    <Button 
+                      onClick={handleSubmit}
+                      disabled={!name.trim() || ingredients.filter(i => i.trim()).length === 0 || instructions.filter(i => i.trim()).length === 0}
+                    >
+                      Save Recipe
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
 
