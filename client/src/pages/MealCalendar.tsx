@@ -70,15 +70,31 @@ export default function MealCalendar() {
   // Create meal mutation
   const createMealMutation = useMutation({
     mutationFn: async (data: any) => {
-      const response = await apiRequest(`/api/families/${currentFamily?.id}/meals`, {
+      const response = await fetch(`/api/families/${currentFamily?.id}/meals`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       });
-      return response;
+      if (!response.ok) throw new Error('Failed to create meal');
+      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/families', currentFamily?.id, 'meals'] });
+    },
+  });
+
+  // Seed recipes mutation
+  const seedRecipesMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch(`/api/families/${currentFamily?.id}/seed-recipes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (!response.ok) throw new Error('Failed to seed recipes');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/families', currentFamily?.id, 'recipes'] });
     },
   });
 
@@ -261,6 +277,16 @@ export default function MealCalendar() {
             <p className="text-gray-600 mt-1">Plan your family's meals for the week</p>
           </div>
           <div className="flex items-center space-x-4">
+            {recipes.length === 0 && (
+              <Button 
+                variant="outline"
+                onClick={() => seedRecipesMutation.mutate()}
+                disabled={seedRecipesMutation.isPending}
+                className="text-blue-600 border-blue-600 hover:bg-blue-50"
+              >
+                {seedRecipesMutation.isPending ? 'Loading...' : 'Load Sample Recipes'}
+              </Button>
+            )}
             <Button 
               variant="outline"
               onClick={handleCopyFromPreviousWeek}

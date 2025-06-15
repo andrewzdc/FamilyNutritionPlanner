@@ -112,6 +112,94 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Seed sample recipes for demo purposes
+  app.post('/api/families/:familyId/seed-recipes', isAuthenticated, async (req: any, res) => {
+    try {
+      const familyId = parseInt(req.params.familyId);
+      const userId = req.user.claims.sub;
+      
+      // Check if user is member of this family
+      const membership = await storage.getUserFamilyMembership(userId, familyId);
+      if (!membership) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const sampleRecipes = [
+        {
+          name: "Grilled Chicken Breast",
+          description: "Juicy grilled chicken with herbs",
+          ingredients: ["chicken breast", "olive oil", "rosemary", "salt", "pepper"],
+          instructions: ["Season chicken", "Preheat grill", "Grill 6-8 minutes per side"],
+          prepTime: 10,
+          cookTime: 15,
+          servings: 4,
+          tags: ["dinner", "protein", "healthy"],
+          familyId,
+          createdBy: userId
+        },
+        {
+          name: "Pasta Primavera",
+          description: "Fresh vegetables with pasta",
+          ingredients: ["pasta", "bell peppers", "zucchini", "tomatoes", "garlic", "olive oil"],
+          instructions: ["Cook pasta", "Sauté vegetables", "Combine and serve"],
+          prepTime: 15,
+          cookTime: 20,
+          servings: 4,
+          tags: ["dinner", "vegetarian", "pasta"],
+          familyId,
+          createdBy: userId
+        },
+        {
+          name: "Caesar Salad",
+          description: "Classic Caesar salad with croutons",
+          ingredients: ["romaine lettuce", "parmesan", "croutons", "caesar dressing"],
+          instructions: ["Chop lettuce", "Add toppings", "Toss with dressing"],
+          prepTime: 10,
+          cookTime: 0,
+          servings: 4,
+          tags: ["side", "salad", "healthy"],
+          familyId,
+          createdBy: userId
+        },
+        {
+          name: "Fish Tacos",
+          description: "Spicy fish tacos with slaw",
+          ingredients: ["white fish", "tortillas", "cabbage", "lime", "hot sauce"],
+          instructions: ["Season and cook fish", "Make slaw", "Assemble tacos"],
+          prepTime: 20,
+          cookTime: 10,
+          servings: 4,
+          tags: ["dinner", "mexican", "fish"],
+          familyId,
+          createdBy: userId
+        },
+        {
+          name: "Roasted Vegetables",
+          description: "Mixed roasted vegetables",
+          ingredients: ["carrots", "broccoli", "bell peppers", "olive oil", "herbs"],
+          instructions: ["Chop vegetables", "Toss with oil", "Roast at 400°F for 25 minutes"],
+          prepTime: 15,
+          cookTime: 25,
+          servings: 6,
+          tags: ["side", "vegetable", "healthy"],
+          familyId,
+          createdBy: userId
+        }
+      ];
+
+      const createdRecipes = [];
+      for (const recipeData of sampleRecipes) {
+        const recipe = await storage.createRecipe(recipeData);
+        createdRecipes.push(recipe);
+      }
+
+      res.json({ message: "Sample recipes created", recipes: createdRecipes });
+    } catch (error) {
+      console.error("Error creating sample recipes:", error);
+      res.status(500).json({ message: "Failed to create sample recipes" });
+    }
+  });
+
   app.get('/api/families/:familyId/recipes', isAuthenticated, async (req: any, res) => {
     try {
       const familyId = parseInt(req.params.familyId);
