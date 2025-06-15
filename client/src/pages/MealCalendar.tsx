@@ -28,7 +28,13 @@ import {
   Copy,
   Shuffle,
   Clock,
-  Users
+  Users,
+  Settings,
+  RefreshCw,
+  Star,
+  Filter,
+  Calendar,
+  Zap
 } from "lucide-react";
 import { format, addDays, startOfWeek, addWeeks, subWeeks } from "date-fns";
 import { apiRequest } from "@/lib/queryClient";
@@ -41,6 +47,7 @@ interface RecommendedMeal {
   totalTime: number;
   servings: number;
   tags: string[];
+  nutritionScore?: number;
 }
 
 export default function MealCalendar() {
@@ -49,6 +56,18 @@ export default function MealCalendar() {
   const [currentWeek, setCurrentWeek] = useState(new Date());
   const [selectedSlot, setSelectedSlot] = useState<{ date: Date; mealTypeId: number } | null>(null);
   const [showRecommendations, setShowRecommendations] = useState(false);
+  const [showPreferences, setShowPreferences] = useState(false);
+  const [showSwapDialog, setShowSwapDialog] = useState(false);
+  const [selectedMeal, setSelectedMeal] = useState<Meal | null>(null);
+  const [mealPreferences, setMealPreferences] = useState({
+    dietaryRestrictions: [] as string[],
+    preferredCuisines: [] as string[],
+    avoidIngredients: [] as string[],
+    maxCookTime: 60,
+    preferredDifficulty: 'any' as 'easy' | 'medium' | 'hard' | 'any',
+    balanceNutrition: true,
+    repeatFrequency: 3, // days before repeating same recipe
+  });
 
   // Get meal types from API
   const { data: mealTypes = [] } = useQuery<MealType[]>({
@@ -89,55 +108,102 @@ export default function MealCalendar() {
     },
   });
 
-  // Generate recommended meals based on family recipes
+  // Smart meal generation based on preferences and nutrition balance
   const generateRecommendedMeals = (): RecommendedMeal[] => {
-    if (recipes.length === 0) {
-      // Create some sample recommendations if no recipes exist
-      return [
-        {
-          id: 'sample-1',
-          recipes: [{
-            id: 1,
-            name: 'Sample Pasta',
-            description: 'A simple pasta dish',
-            ingredients: ['pasta', 'tomato sauce'],
-            instructions: ['cook pasta', 'add sauce'],
-            prepTime: 10,
-            cookTime: 15,
-            servings: 4,
-            tags: ['dinner', 'easy'],
-            familyId: currentFamily?.id || 1,
-            createdBy: '1',
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-          } as Recipe],
-          totalTime: 25,
-          servings: 4,
-          tags: ['dinner', 'easy']
-        }
-      ];
+    if (recipes.length === 0) return [];
+
+    const weekMeals = meals.filter(meal => {
+      const mealDate = new Date(meal.scheduledDate);
+      const weekStart = startOfWeek(currentWeek);
+      const weekEnd = addDays(weekStart, 6);
+      return mealDate >= weekStart && mealDate <= weekEnd;
+    });
+
+    const recentRecipeIds = weekMeals.map(m => m.recipeId);
+    
+    // Filter recipes based on preferences
+    let filteredRecipes = recipes.filter(recipe => {
+      // Check dietary restrictions
+      if (mealPreferences.dietaryRestrictions.length > 0) {
+        const hasRestrictedIngredients = recipe.ingredients.some(ingredient =>
+          mealPreferences.avoidIngredients.some(avoid => 
+            ingredient.toLowerCase().includes(avoid.toLowerCase())
+          )
+        );
+        if (hasRestrictedIngredients) return false;
+      }
+
+      // Check cook time preference
+      const totalTime = (recipe.prepTime || 0) + (recipe.cookTime || 0);
+      if (totalTime > mealPreferences.maxCookTime) return false;
+
+      // Check difficulty preference
+      if (mealPreferences.preferredDifficulty !== 'any' && recipe.difficulty) {
+        if (recipe.difficulty !== mealPreferences.preferredDifficulty) return false;
+      }
+
+      // Avoid recent repeats
+      if (recentRecipeIds.includes(recipe.id)) {
+        const daysSinceUsed = Math.floor((Date.now() - new Date(recipe.updatedAt || '').getTime()) / (1000 * 60 * 60 * 24));
+        if (daysSinceUsed < mealPreferences.repeatFrequency) return false;
+      }
+
+      return true;
+    });
+
+    // If no recipes match preferences, fallback to all recipes
+    if (filteredRecipes.length === 0) {
+      filteredRecipes = recipes;
     }
 
     const recommendations: RecommendedMeal[] = [];
     
-    // Simple meal combinations from actual recipes
-    for (let i = 0; i < Math.min(6, recipes.length); i++) {
-      const mainRecipe = recipes[i];
-      const sides = recipes.filter(r => 
+    // Generate balanced meal combinations
+    for (let i = 0; i < Math.min(6, filteredRecipes.length); i++) {
+      const mainRecipe = filteredRecipes[i];
+      
+      // Find complementary sides for nutritional balance
+      const sides = filteredRecipes.filter(r => 
         r.id !== mainRecipe.id && 
-        r.tags?.some(tag => ['side', 'salad', 'vegetable'].includes(tag.toLowerCase()))
+        r.tags?.some(tag => ['side', 'salad', 'vegetable', 'grain'].includes(tag.toLowerCase()))
       ).slice(0, 2);
+
+      // Calculate nutrition score (simplified)
+      const nutritionScore = calculateNutritionScore(mainRecipe, sides);
 
       recommendations.push({
         id: `rec-${i}`,
         recipes: [mainRecipe, ...sides],
         totalTime: (mainRecipe.prepTime || 0) + (mainRecipe.cookTime || 0),
         servings: mainRecipe.servings || 4,
-        tags: mainRecipe.tags || []
+        tags: [...(mainRecipe.tags || []), ...sides.flatMap(s => s.tags || [])],
+        nutritionScore
       });
     }
 
+    // Sort by nutrition score if balance is preferred
+    if (mealPreferences.balanceNutrition) {
+      recommendations.sort((a, b) => (b.nutritionScore || 0) - (a.nutritionScore || 0));
+    }
+
     return recommendations;
+  };
+
+  const calculateNutritionScore = (main: Recipe, sides: Recipe[]): number => {
+    // Simplified nutrition scoring based on tags and ingredients
+    let score = 0;
+    
+    const allRecipes = [main, ...sides];
+    const allTags = allRecipes.flatMap(r => r.tags || []);
+    const allIngredients = allRecipes.flatMap(r => r.ingredients);
+
+    // Bonus for balanced macros
+    if (allTags.includes('protein')) score += 3;
+    if (allTags.includes('vegetable') || allIngredients.some(i => ['carrot', 'broccoli', 'spinach'].includes(i))) score += 2;
+    if (allTags.includes('grain') || allIngredients.some(i => ['rice', 'quinoa', 'pasta'].includes(i))) score += 2;
+    if (allTags.includes('healthy')) score += 1;
+
+    return score;
   };
 
   const recommendedMeals = generateRecommendedMeals();
@@ -250,6 +316,40 @@ export default function MealCalendar() {
     setShowRecommendations(true);
   };
 
+  const handleSwapMeal = (meal: Meal) => {
+    setSelectedMeal(meal);
+    setShowSwapDialog(true);
+  };
+
+  const applyMealTemplate = (templateName: string) => {
+    const templates = {
+      'mediterranean': ['Greek Salad', 'Fish Tacos', 'Pasta Primavera'],
+      'comfort': ['Grilled Chicken', 'Roasted Vegetables', 'Caesar Salad'],
+      'quick': ['Pasta Primavera', 'Caesar Salad', 'Fish Tacos'],
+      'healthy': ['Grilled Chicken', 'Roasted Vegetables', 'Caesar Salad']
+    };
+
+    const templateRecipes = templates[templateName as keyof typeof templates] || [];
+    const weekStart = startOfWeek(currentWeek);
+    
+    templateRecipes.forEach((recipeName, index) => {
+      const matchingRecipe = recipes.find(r => r.name.includes(recipeName));
+      if (matchingRecipe) {
+        const day = addDays(weekStart, index % 7);
+        const mealType = mockMealTypes[index % mockMealTypes.length];
+        
+        createMealMutation.mutate({
+          familyId: currentFamily?.id,
+          recipeId: matchingRecipe.id,
+          mealTypeId: mealType.id,
+          scheduledDate: format(day, 'yyyy-MM-dd'),
+          servings: matchingRecipe.servings || 4,
+          status: 'planned'
+        });
+      }
+    });
+  };
+
   if (!currentFamily) {
     return <div>Please select a family first.</div>;
   }
@@ -266,7 +366,7 @@ export default function MealCalendar() {
             <h2 className="text-3xl font-bold text-gray-900">Meal Calendar</h2>
             <p className="text-gray-600 mt-1">Plan your family's meals for the week</p>
           </div>
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2">
             {recipes.length === 0 && (
               <Button 
                 variant="outline"
@@ -277,17 +377,107 @@ export default function MealCalendar() {
                 {seedRecipesMutation.isPending ? 'Loading...' : 'Load Sample Recipes'}
               </Button>
             )}
+            
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <Calendar className="w-4 h-4 mr-2" />
+                  Templates
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuItem onClick={() => applyMealTemplate('mediterranean')}>
+                  <Star className="w-4 h-4 mr-2" />
+                  Mediterranean Week
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => applyMealTemplate('comfort')}>
+                  <Star className="w-4 h-4 mr-2" />
+                  Comfort Food Week
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => applyMealTemplate('quick')}>
+                  <Zap className="w-4 h-4 mr-2" />
+                  Quick & Easy Week
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => applyMealTemplate('healthy')}>
+                  <Star className="w-4 h-4 mr-2" />
+                  Healthy Week
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <Dialog open={showPreferences} onOpenChange={setShowPreferences}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <Settings className="w-4 h-4 mr-2" />
+                  Preferences
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Meal Planning Preferences</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-sm font-medium">Max Cook Time</label>
+                    <input
+                      type="range"
+                      min="15"
+                      max="120"
+                      value={mealPreferences.maxCookTime}
+                      onChange={(e) => setMealPreferences(prev => ({
+                        ...prev,
+                        maxCookTime: parseInt(e.target.value)
+                      }))}
+                      className="w-full"
+                    />
+                    <span className="text-xs text-gray-500">{mealPreferences.maxCookTime} minutes</span>
+                  </div>
+                  
+                  <div>
+                    <label className="text-sm font-medium">Repeat Frequency</label>
+                    <input
+                      type="range"
+                      min="1"
+                      max="14"
+                      value={mealPreferences.repeatFrequency}
+                      onChange={(e) => setMealPreferences(prev => ({
+                        ...prev,
+                        repeatFrequency: parseInt(e.target.value)
+                      }))}
+                      className="w-full"
+                    />
+                    <span className="text-xs text-gray-500">Wait {mealPreferences.repeatFrequency} days before repeating</span>
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="balanceNutrition"
+                      checked={mealPreferences.balanceNutrition}
+                      onChange={(e) => setMealPreferences(prev => ({
+                        ...prev,
+                        balanceNutrition: e.target.checked
+                      }))}
+                    />
+                    <label htmlFor="balanceNutrition" className="text-sm">Prioritize nutritional balance</label>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+
             <Button 
               variant="outline"
               onClick={handleCopyFromPreviousWeek}
-              className="text-gray-600"
+              size="sm"
             >
               <Copy className="w-4 h-4 mr-2" />
               Copy Previous Week
             </Button>
+            
             <Button 
               onClick={handleAutoFillWeek}
               className="bg-primary hover:bg-primary/90 text-white"
+              size="sm"
             >
               <Shuffle className="w-4 h-4 mr-2" />
               Auto-Fill Week
@@ -384,6 +574,10 @@ export default function MealCalendar() {
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent>
+                                <DropdownMenuItem onClick={() => handleSwapMeal(meal)}>
+                                  <RefreshCw className="w-4 h-4 mr-2" />
+                                  Swap Recipe
+                                </DropdownMenuItem>
                                 <DropdownMenuItem>
                                   <Edit className="w-4 h-4 mr-2" />
                                   Edit Meal
@@ -466,6 +660,72 @@ export default function MealCalendar() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Recipe Swap Dialog */}
+        <Dialog open={showSwapDialog} onOpenChange={setShowSwapDialog}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Swap Recipe</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="text-sm text-gray-600">
+                Choose a replacement recipe for {selectedMeal ? format(new Date(selectedMeal.scheduledDate), 'EEEE, MMMM d') : ''}
+              </div>
+              
+              <div className="grid grid-cols-1 gap-3 max-h-96 overflow-y-auto">
+                {recipes
+                  .filter(recipe => recipe.id !== selectedMeal?.recipeId)
+                  .map((recipe) => (
+                    <Card 
+                      key={recipe.id} 
+                      className="cursor-pointer hover:shadow-md transition-shadow border-2 hover:border-primary"
+                      onClick={() => {
+                        if (selectedMeal) {
+                          // Update the existing meal with new recipe
+                          fetch(`/api/meals/${selectedMeal.id}`, {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ recipeId: recipe.id })
+                          }).then(() => {
+                            queryClient.invalidateQueries({ queryKey: ['/api/families', currentFamily?.id, 'meals'] });
+                            setShowSwapDialog(false);
+                            setSelectedMeal(null);
+                          });
+                        }
+                      }}
+                    >
+                      <CardContent className="p-4">
+                        <div className="flex justify-between items-start">
+                          <div className="space-y-2">
+                            <h4 className="font-medium">{recipe.name}</h4>
+                            <p className="text-sm text-gray-600">{recipe.description}</p>
+                            <div className="flex items-center space-x-4 text-sm text-gray-500">
+                              <div className="flex items-center space-x-1">
+                                <Clock className="w-4 h-4" />
+                                <span>{(recipe.prepTime || 0) + (recipe.cookTime || 0)} min</span>
+                              </div>
+                              <div className="flex items-center space-x-1">
+                                <Users className="w-4 h-4" />
+                                <span>{recipe.servings} servings</span>
+                              </div>
+                            </div>
+                            <div className="flex space-x-1">
+                              {recipe.tags?.map((tag) => (
+                                <Badge key={tag} variant="secondary" className="text-xs">
+                                  {tag}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                          <Button size="sm" variant="outline">Select</Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </main>
   );
