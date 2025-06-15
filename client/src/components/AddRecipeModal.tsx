@@ -1,9 +1,4 @@
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -11,6 +6,10 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -18,6 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 import { 
   Plus, 
   X, 
@@ -30,6 +30,7 @@ import {
   Download,
   Sparkles
 } from "lucide-react";
+import { useFamily } from "@/contexts/FamilyContext";
 
 interface AddRecipeModalProps {
   children: React.ReactNode;
@@ -42,6 +43,7 @@ interface AddRecipeModalProps {
 export default function AddRecipeModal({ children, defaultTab = "manual", onCreateRecipe, onScrapeUrl, onScrapeVideo }: AddRecipeModalProps) {
   const [open, setOpen] = useState(false);
   const [activeTab, setActiveTab] = useState(defaultTab);
+  const { currentFamily } = useFamily();
 
   // Manual form states
   const [name, setName] = useState("");
@@ -148,7 +150,7 @@ export default function AddRecipeModal({ children, defaultTab = "manual", onCrea
 
   const handleUrlScrape = async () => {
     if (!recipeUrl.trim() || !onScrapeUrl) return;
-    
+
     setUrlLoading(true);
     try {
       const result = await onScrapeUrl({ url: recipeUrl, familyId: 1 });
@@ -164,7 +166,7 @@ export default function AddRecipeModal({ children, defaultTab = "manual", onCrea
 
   const handleVideoScrape = async () => {
     if (!videoUrl.trim() || !onScrapeVideo) return;
-    
+
     setVideoLoading(true);
     try {
       const result = await onScrapeVideo({ url: videoUrl, familyId: 1 });
@@ -180,7 +182,7 @@ export default function AddRecipeModal({ children, defaultTab = "manual", onCrea
 
   const handleSubmit = () => {
     if (!onCreateRecipe) return;
-    
+
     const recipeData = {
       name,
       description,
@@ -192,7 +194,7 @@ export default function AddRecipeModal({ children, defaultTab = "manual", onCrea
       difficulty,
       imageUrl: imageUrl || undefined,
       tags,
-      familyId: 1,
+      familyId: currentFamily?.id,
     };
 
     onCreateRecipe(recipeData);
@@ -209,7 +211,7 @@ export default function AddRecipeModal({ children, defaultTab = "manual", onCrea
         <DialogHeader className="p-6 pb-0">
           <DialogTitle>Add New Recipe</DialogTitle>
         </DialogHeader>
-        
+
         <div className="flex-1 overflow-hidden flex flex-col p-6">
           {/* Custom Tab Navigation */}
           <div className="border-b border-gray-200 pb-4 mb-4">
@@ -457,7 +459,7 @@ export default function AddRecipeModal({ children, defaultTab = "manual", onCrea
                     Supports popular recipe sites like AllRecipes, Food Network, Tasty, and more
                   </p>
                 </div>
-                
+
                 <div className="bg-blue-50 rounded-lg p-4">
                   <h4 className="font-medium text-blue-900 mb-2">How URL Import Works</h4>
                   <ul className="text-sm text-blue-700 space-y-1">
@@ -549,7 +551,7 @@ export default function AddRecipeModal({ children, defaultTab = "manual", onCrea
                     Supports YouTube, TikTok, Instagram, and other video platforms
                   </p>
                 </div>
-                
+
                 <div className="bg-purple-50 rounded-lg p-4">
                   <h4 className="font-medium text-purple-900 mb-2">AI Video Analysis</h4>
                   <ul className="text-sm text-purple-700 space-y-1">
@@ -656,7 +658,7 @@ export default function AddRecipeModal({ children, defaultTab = "manual", onCrea
               </div>
             )}
           </div>
-          
+
           {/* Fixed Submit Button Area for Manual Tab */}
           {activeTab === "manual" && (
             <div className="border-t bg-white p-6">
