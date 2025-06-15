@@ -623,7 +623,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getCookingStreaks(userId: string, familyId: number): Promise<CookingStreak[]> {
-    console.log(userID, familyId);
+    console.log(userId, familyId);
     return await db
       .select()
       .from(cookingStreaks)
@@ -697,14 +697,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getActiveChallenges(): Promise<Challenge[]> {
-    const now = new Date();
     return await db
       .select()
       .from(challenges)
-      .where(and(
-        eq(challenges.isActive, true),
-        // TODO: Add proper date comparison operators
-      ));
+      .where(eq(challenges.isActive, true));
   }
 
   async getChallengeParticipants(challengeId: number): Promise<ChallengeParticipant[]> {
