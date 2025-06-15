@@ -137,11 +137,34 @@ export const shoppingListItems = pgTable("shopping_list_items", {
   shoppingListId: integer("shopping_list_id").notNull().references(() => shoppingLists.id),
   name: varchar("name", { length: 255 }).notNull(),
   quantity: varchar("quantity", { length: 100 }),
-  category: varchar("category", { length: 100 }),
+  unit: varchar("unit", { length: 50 }), // cups, lbs, oz, etc.
+  category: varchar("category", { length: 100 }), // produce, dairy, meat, pantry, etc.
+  aisle: varchar("aisle", { length: 50 }), // grocery store aisle location
   isCompleted: boolean("is_completed").default(false),
   notes: text("notes"),
+  estimatedPrice: decimal("estimated_price", { precision: 6, scale: 2 }),
+  sourceType: varchar("source_type", { length: 50 }).default("manual"), // manual, recipe, recurring
+  sourceId: integer("source_id"), // recipe_id if from recipe, meal_id if from meal
+  priority: integer("priority").default(3), // 1=high, 2=medium, 3=low
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Pantry inventory table for tracking what families already have
+export const pantryItems = pgTable("pantry_items", {
+  id: serial("id").primaryKey(),
+  familyId: integer("family_id").notNull().references(() => families.id),
+  name: varchar("name", { length: 255 }).notNull(),
+  quantity: varchar("quantity", { length: 100 }),
+  unit: varchar("unit", { length: 50 }),
+  category: varchar("category", { length: 100 }),
+  expirationDate: timestamp("expiration_date"),
+  location: varchar("location", { length: 100 }), // pantry, fridge, freezer
+  isLow: boolean("is_low").default(false), // flag for low stock
+  reorderThreshold: varchar("reorder_threshold", { length: 100 }),
+  notes: text("notes"),
+  lastUpdated: timestamp("last_updated").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
 // Restaurant orders table
@@ -182,6 +205,7 @@ export const familiesRelations = relations(families, ({ one, many }) => ({
   meals: many(meals),
   nutritionLogs: many(nutritionLogs),
   shoppingLists: many(shoppingLists),
+  pantryItems: many(pantryItems),
   restaurantOrders: many(restaurantOrders),
 }));
 
@@ -266,6 +290,13 @@ export const shoppingListItemsRelations = relations(shoppingListItems, ({ one })
   }),
 }));
 
+export const pantryItemsRelations = relations(pantryItems, ({ one }) => ({
+  family: one(families, {
+    fields: [pantryItems.familyId],
+    references: [families.id],
+  }),
+}));
+
 export const restaurantOrdersRelations = relations(restaurantOrders, ({ one }) => ({
   family: one(families, {
     fields: [restaurantOrders.familyId],
@@ -344,3 +375,6 @@ export type InsertShoppingListItem = z.infer<typeof insertShoppingListItemSchema
 export type ShoppingListItem = typeof shoppingListItems.$inferSelect;
 export type InsertRestaurantOrder = z.infer<typeof insertRestaurantOrderSchema>;
 export type RestaurantOrder = typeof restaurantOrders.$inferSelect;
+
+export type PantryItem = typeof pantryItems.$inferSelect;
+export type InsertPantryItem = typeof pantryItems.$inferInsert;
