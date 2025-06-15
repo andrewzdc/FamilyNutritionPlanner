@@ -8,6 +8,7 @@ import {
   nutritionLogs,
   shoppingLists,
   shoppingListItems,
+  pantryItems,
   restaurantOrders,
   type User,
   type UpsertUser,
@@ -26,6 +27,8 @@ import {
   type ShoppingList,
   type InsertShoppingListItem,
   type ShoppingListItem,
+  type InsertPantryItem,
+  type PantryItem,
   type InsertRestaurantOrder,
   type RestaurantOrder,
 } from "@shared/schema";
@@ -86,6 +89,17 @@ export interface IStorage {
   createRestaurantOrder(order: InsertRestaurantOrder): Promise<RestaurantOrder>;
   getRestaurantOrdersByFamilyId(familyId: number): Promise<RestaurantOrder[]>;
   getRestaurantOrderById(id: number): Promise<RestaurantOrder | undefined>;
+  
+  // Pantry operations
+  createPantryItem(item: InsertPantryItem): Promise<PantryItem>;
+  getPantryItemsByFamilyId(familyId: number): Promise<PantryItem[]>;
+  updatePantryItem(id: number, item: Partial<InsertPantryItem>): Promise<PantryItem | undefined>;
+  deletePantryItem(id: number): Promise<boolean>;
+  
+  // Advanced shopping list operations
+  generateShoppingListFromMeals(familyId: number, mealIds: number[]): Promise<{ consolidatedIngredients: any[], existingPantryItems: PantryItem[] }>;
+  getShoppingListItemHistory(familyId: number, itemName: string): Promise<ShoppingListItem[]>;
+  bulkUpdateShoppingListItems(updates: { id: number; updates: Partial<InsertShoppingListItem> }[]): Promise<ShoppingListItem[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -343,6 +357,124 @@ export class DatabaseStorage implements IStorage {
   async getRestaurantOrderById(id: number): Promise<RestaurantOrder | undefined> {
     const [order] = await db.select().from(restaurantOrders).where(eq(restaurantOrders.id, id));
     return order;
+  }
+
+  // Pantry operations
+  async createPantryItem(item: InsertPantryItem): Promise<PantryItem> {
+    const [pantryItem] = await db
+      .insert(pantryItems)
+      .values(item)
+      .returning();
+    return pantryItem;
+  }
+
+  async getPantryItemsByFamilyId(familyId: number): Promise<PantryItem[]> {
+    return await db
+      .select()
+      .from(pantryItems)
+      .where(eq(pantryItems.familyId, familyId))
+      .orderBy(asc(pantryItems.name));
+  }
+
+  async updatePantryItem(id: number, item: Partial<InsertPantryItem>): Promise<PantryItem | undefined> {
+    const [pantryItem] = await db
+      .update(pantryItems)
+      .set(item)
+      .where(eq(pantryItems.id, id))
+      .returning();
+    return pantryItem;
+  }
+
+  async deletePantryItem(id: number): Promise<boolean> {
+    const result = await db
+      .delete(pantryItems)
+      .where(eq(pantryItems.id, id));
+    return (result.rowCount || 0) > 0;
+  }
+
+  // Advanced shopping list operations
+  async generateShoppingListFromMeals(familyId: number, mealIds: number[]): Promise<{ consolidatedIngredients: any[], existingPantryItems: PantryItem[] }> {
+    // Get all meals and their recipes
+    const mealList = await db
+      .select()
+      .from(meals)
+      .where(and(
+        eq(meals.familyId, familyId),
+        // TODO: Add proper SQL IN operator for mealIds
+      ));
+
+    // Get all recipes for these meals
+    const recipeIds = mealList.map(meal => meal.recipeId);
+    const recipeList = await db
+      .select()
+      .from(recipes)
+      .where(eq(recipes.familyId, familyId));
+
+    // Get existing pantry items
+    const existingPantryItems = await this.getPantryItemsByFamilyId(familyId);
+
+    // Consolidate ingredients from recipes
+    const consolidatedIngredients: any[] = [];
+    for (const meal of mealList) {
+      const recipe = recipeList.find(r => r.id === meal.recipeId);
+      if (recipe && recipe.ingredients) {
+        const ingredients = Array.isArray(recipe.ingredients) ? recipe.ingredients : [];
+        for (const ingredient of ingredients) {
+          const existing = consolidatedIngredients.find(i => i.name === ingredient);
+          if (existing) {
+            // TODO: Add quantity consolidation logic
+          } else {
+            consolidatedIngredients.push({
+              name: ingredient,
+              quantity: "1",
+              unit: "serving",
+              category: "Recipe Ingredient",
+              sourceType: "recipe",
+              sourceId: recipe.id,
+              priority: 2
+            });
+          }
+        }
+      }
+    }
+
+    return { consolidatedIngredients, existingPantryItems };
+  }
+
+  async getShoppingListItemHistory(familyId: number, itemName: string): Promise<ShoppingListItem[]> {
+    const familyShoppingLists = await db
+      .select()
+      .from(shoppingLists)
+      .where(eq(shoppingLists.familyId, familyId));
+
+    const listIds = familyShoppingLists.map(list => list.id);
+    
+    // Get items with matching name from family's shopping lists
+    const items = await db
+      .select()
+      .from(shoppingListItems)
+      .where(eq(shoppingListItems.name, itemName))
+      .orderBy(desc(shoppingListItems.createdAt));
+
+    return items.filter(item => listIds.includes(item.shoppingListId));
+  }
+
+  async bulkUpdateShoppingListItems(updates: { id: number; updates: Partial<InsertShoppingListItem> }[]): Promise<ShoppingListItem[]> {
+    const updatedItems: ShoppingListItem[] = [];
+    
+    for (const update of updates) {
+      const [item] = await db
+        .update(shoppingListItems)
+        .set(update.updates)
+        .where(eq(shoppingListItems.id, update.id))
+        .returning();
+      
+      if (item) {
+        updatedItems.push(item);
+      }
+    }
+    
+    return updatedItems;
   }
 }
 

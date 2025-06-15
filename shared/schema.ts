@@ -350,6 +350,12 @@ export const insertShoppingListItemSchema = createInsertSchema(shoppingListItems
   updatedAt: true,
 });
 
+export const insertPantryItemSchema = createInsertSchema(pantryItems).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 export const insertRestaurantOrderSchema = createInsertSchema(restaurantOrders).omit({
   id: true,
   createdAt: true,
