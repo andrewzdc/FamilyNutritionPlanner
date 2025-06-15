@@ -697,10 +697,20 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getActiveChallenges(): Promise<Challenge[]> {
-    return await db
+    console.log('Debug - Storage getActiveChallenges called');
+    
+    // First get all challenges to debug
+    const allChallenges = await db.select().from(challenges);
+    console.log('Debug - Storage all challenges:', allChallenges.length, allChallenges.map(c => ({ id: c.id, name: c.name, isActive: c.isActive })));
+    
+    const activeChallenges = await db
       .select()
       .from(challenges)
       .where(eq(challenges.isActive, true));
+    
+    console.log('Debug - Storage active challenges after filter:', activeChallenges.length, activeChallenges.map(c => ({ id: c.id, name: c.name, isActive: c.isActive })));
+    
+    return activeChallenges;
   }
 
   async getChallengeParticipants(challengeId: number): Promise<ChallengeParticipant[]> {

@@ -703,6 +703,80 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Reseed challenges (for debugging)
+  app.post('/api/challenges/reseed', isAuthenticated, async (req, res) => {
+    try {
+      // Delete existing challenges first
+      await db.delete(challenges);
+      
+      // Reseed challenges
+      const now = new Date();
+      const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+      const nextMonth = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+      const sampleChallenges = [
+        {
+          name: "7-Day Cooking Challenge",
+          description: "Cook a homemade meal every day for 7 consecutive days",
+          category: "weekly",
+          startDate: now,
+          endDate: nextWeek,
+          requirements: { dailyCooking: 7, consecutiveDays: true },
+          rewards: { points: 200, badge: "Week Chef" },
+          difficulty: "bronze",
+          maxParticipants: 100,
+          isActive: true
+        },
+        {
+          name: "Try 5 New Recipes",
+          description: "Expand your culinary horizons by trying 5 recipes you've never made before",
+          category: "monthly",
+          startDate: now,
+          endDate: nextMonth,
+          requirements: { newRecipes: 5 },
+          rewards: { points: 150, badge: "Recipe Explorer" },
+          difficulty: "silver",
+          maxParticipants: 50,
+          isActive: true
+        },
+        {
+          name: "Healthy Eating Week",
+          description: "Plan and cook healthy meals for an entire week",
+          category: "weekly",
+          startDate: now,
+          endDate: nextWeek,
+          requirements: { healthyMeals: 14, tags: ["healthy", "vegetarian"] },
+          rewards: { points: 300, badge: "Health Champion" },
+          difficulty: "gold",
+          maxParticipants: 75,
+          isActive: true
+        },
+        {
+          name: "Family Meal Planning",
+          description: "Plan all family meals for 2 weeks in advance",
+          category: "monthly",
+          startDate: now,
+          endDate: nextMonth,
+          requirements: { plannedMeals: 42, familyMeals: true },
+          rewards: { points: 250, badge: "Planning Pro" },
+          difficulty: "silver",
+          maxParticipants: 30,
+          isActive: true
+        }
+      ];
+
+      for (const challenge of sampleChallenges) {
+        await db.insert(challenges).values(challenge);
+      }
+
+      const activeChallenges = await storage.getActiveChallenges();
+      res.json({ message: 'Challenges reseeded successfully', count: activeChallenges.length, challenges: activeChallenges });
+    } catch (error) {
+      console.error('Error reseeding challenges:', error);
+      res.status(500).json({ message: 'Failed to reseed challenges' });
+    }
+  });
+
   // Award achievement
   app.post('/api/achievements/award', async (req, res) => {
     try {

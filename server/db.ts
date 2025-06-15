@@ -140,6 +140,54 @@ export const db = drizzle({ client: pool, schema });
         difficulty: "silver",
         maxParticipants: 30,
         isActive: true
+      },
+      {
+        name: "Weekend Warrior",
+        description: "Cook elaborate meals on weekends",
+        category: "weekly",
+        startDate: now,
+        endDate: nextWeek,
+        requirements: { weekendMeals: 4, difficulty: "intermediate" },
+        rewards: { points: 175, badge: "Weekend Chef" },
+        difficulty: "silver",
+        maxParticipants: 60,
+        isActive: true
+      },
+      {
+        name: "International Cuisine Explorer",
+        description: "Try dishes from 5 different countries",
+        category: "monthly",
+        startDate: now,
+        endDate: nextMonth,
+        requirements: { internationalDishes: 5, differentCountries: 5 },
+        rewards: { points: 300, badge: "World Explorer" },
+        difficulty: "gold",
+        maxParticipants: 40,
+        isActive: true
+      },
+      {
+        name: "Meal Prep Master",
+        description: "Prepare meals for the entire week in advance",
+        category: "weekly",
+        startDate: now,
+        endDate: nextWeek,
+        requirements: { preparedMeals: 21, advancePrep: true },
+        rewards: { points: 225, badge: "Prep Master" },
+        difficulty: "silver",
+        maxParticipants: 80,
+        isActive: true
+      },
+      {
+        name: "Zero Waste Challenge",
+        description: "Cook meals using leftover ingredients for one week",
+        category: "weekly",
+        startDate: now,
+        endDate: nextWeek,
+        requirements: { leftoverMeals: 7, zeroWaste: true },
+        rewards: { points: 275, badge: "Eco Chef" },
+        difficulty: "gold",
+        maxParticipants: 35,
+        isActive: true
       }
     ];
 

@@ -79,6 +79,19 @@ export default function Achievements() {
     },
   });
 
+  // Reseed challenges mutation (for debugging)
+  const reseedChallengesMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest('/api/challenges/reseed', {
+        method: 'POST',
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/challenges/active'] });
+      toast({ title: "Challenges reseeded successfully!" });
+    },
+  });
+
   // Process achievements to include progress
   const processedAchievements: AchievementWithProgress[] = allAchievements.map((achievement: Achievement) => {
     const userProgress = userAchievements.find((ua: UserAchievement) => ua.achievementId === achievement.id);
@@ -298,10 +311,20 @@ export default function Achievements() {
         </TabsContent>
 
         <TabsContent value="challenges" className="space-y-6">
-          <h2 className="text-2xl font-semibold flex items-center gap-2">
-            <Target className="h-6 w-6 text-blue-500" />
-            Active Challenges
-          </h2>
+          <div className="flex justify-between items-center">
+            <h2 className="text-2xl font-semibold flex items-center gap-2">
+              <Target className="h-6 w-6 text-blue-500" />
+              Active Challenges
+            </h2>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => reseedChallengesMutation.mutate()}
+              disabled={reseedChallengesMutation.isPending}
+            >
+              {reseedChallengesMutation.isPending ? "Reseeding..." : "Reseed Challenges (Debug)"}
+            </Button>
+          </div>
           {challengesLoading ? (
             <div className="text-center py-6">Loading challenges...</div>
           ) : challengesError ? (
