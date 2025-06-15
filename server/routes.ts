@@ -36,9 +36,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const familyData = insertFamilySchema.parse({ ...req.body, createdBy: userId });
-      
+
       const family = await storage.createFamily(familyData);
-      
+
       // Add creator as admin member
       await storage.addFamilyMember({
         familyId: family.id,
@@ -46,7 +46,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         role: 'admin',
         displayName: req.user.claims.first_name || 'Admin',
       });
-      
+
       res.json(family);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -73,13 +73,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const familyId = parseInt(req.params.id);
       const userId = req.user.claims.sub;
-      
+
       // Check if user is member of this family
       const membership = await storage.getUserFamilyMembership(userId, familyId);
       if (!membership) {
         return res.status(403).json({ message: "Access denied" });
       }
-      
+
       const members = await storage.getFamilyMembers(familyId);
       res.json(members);
     } catch (error) {
@@ -93,13 +93,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const recipeData = insertRecipeSchema.parse({ ...req.body, createdBy: userId });
-      
+
       // Check if user is member of the family
       const membership = await storage.getUserFamilyMembership(userId, recipeData.familyId);
       if (!membership) {
         return res.status(403).json({ message: "Access denied" });
       }
-      
+
       const recipe = await storage.createRecipe(recipeData);
       res.json(recipe);
     } catch (error) {
@@ -117,7 +117,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const familyId = parseInt(req.params.familyId);
       const userId = req.user.claims.sub;
-      
+
       // Check if user is member of this family
       const membership = await storage.getUserFamilyMembership(userId, familyId);
       if (!membership) {
@@ -204,13 +204,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const familyId = parseInt(req.params.familyId);
       const userId = req.user.claims.sub;
-      
+
       // Check if user is member of this family
       const membership = await storage.getUserFamilyMembership(userId, familyId);
       if (!membership) {
         return res.status(403).json({ message: "Access denied" });
       }
-      
+
       const recipes = await storage.getRecipesByFamilyId(familyId);
       res.json(recipes);
     } catch (error) {
@@ -223,21 +223,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const recipeId = parseInt(req.params.id);
       const userId = req.user.claims.sub;
-      
+
       const recipe = await storage.getRecipeById(recipeId);
       if (!recipe) {
         return res.status(404).json({ message: "Recipe not found" });
       }
-      
+
       // Check if user is member of the family
       const membership = await storage.getUserFamilyMembership(userId, recipe.familyId);
       if (!membership) {
         return res.status(403).json({ message: "Access denied" });
       }
-      
+
       const updateData = insertRecipeSchema.partial().parse(req.body);
       const updatedRecipe = await storage.updateRecipe(recipeId, updateData);
-      
+
       res.json(updatedRecipe);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -253,18 +253,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const recipeId = parseInt(req.params.id);
       const userId = req.user.claims.sub;
-      
+
       const recipe = await storage.getRecipeById(recipeId);
       if (!recipe) {
         return res.status(404).json({ message: "Recipe not found" });
       }
-      
+
       // Check if user is member of the family
       const membership = await storage.getUserFamilyMembership(userId, recipe.familyId);
       if (!membership) {
         return res.status(403).json({ message: "Access denied" });
       }
-      
+
       const success = await storage.deleteRecipe(recipeId);
       res.json({ success });
     } catch (error) {
@@ -289,13 +289,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const mealData = insertMealSchema.parse({ ...req.body, createdBy: userId });
-      
+
       // Check if user is member of the family
       const membership = await storage.getUserFamilyMembership(userId, mealData.familyId);
       if (!membership) {
         return res.status(403).json({ message: "Access denied" });
       }
-      
+
       const meal = await storage.createMeal(mealData);
       res.json(meal);
     } catch (error) {
@@ -313,20 +313,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const familyId = parseInt(req.params.familyId);
       const userId = req.user.claims.sub;
       const { startDate, endDate } = req.query;
-      
+
       // Check if user is member of this family
       const membership = await storage.getUserFamilyMembership(userId, familyId);
       if (!membership) {
         return res.status(403).json({ message: "Access denied" });
       }
-      
+
       let meals;
       if (startDate && endDate) {
         meals = await storage.getMealsByDateRange(familyId, startDate as string, endDate as string);
       } else {
         meals = await storage.getMealsByFamilyId(familyId);
       }
-      
+
       res.json(meals);
     } catch (error) {
       console.error("Error fetching meals:", error);
@@ -338,19 +338,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const mealId = parseInt(req.params.id);
-      
+
       // First get the meal to check family membership
       const meal = await storage.getMealById(mealId);
       if (!meal) {
         return res.status(404).json({ message: "Meal not found" });
       }
-      
+
       // Check if user is member of the family
       const membership = await storage.getUserFamilyMembership(userId, meal.familyId);
       if (!membership) {
         return res.status(403).json({ message: "Access denied" });
       }
-      
+
       const updatedMeal = await storage.updateMeal(mealId, req.body);
       res.json(updatedMeal);
     } catch (error) {
@@ -363,19 +363,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const mealId = parseInt(req.params.id);
-      
+
       // First get the meal to check family membership
       const meal = await storage.getMealById(mealId);
       if (!meal) {
         return res.status(404).json({ message: "Meal not found" });
       }
-      
+
       // Check if user is member of the family
       const membership = await storage.getUserFamilyMembership(userId, meal.familyId);
       if (!membership) {
         return res.status(403).json({ message: "Access denied" });
       }
-      
+
       const success = await storage.deleteMeal(mealId);
       res.json({ success });
     } catch (error) {
@@ -389,13 +389,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const logData = insertNutritionLogSchema.parse({ ...req.body, userId });
-      
+
       // Check if user is member of the family
       const membership = await storage.getUserFamilyMembership(userId, logData.familyId);
       if (!membership) {
         return res.status(403).json({ message: "Access denied" });
       }
-      
+
       const log = await storage.createNutritionLog(logData);
       res.json(log);
     } catch (error) {
@@ -412,7 +412,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const { date } = req.query;
-      
+
       const logs = await storage.getNutritionLogsByUserId(userId, date as string);
       res.json(logs);
     } catch (error) {
@@ -426,13 +426,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const listData = insertShoppingListSchema.parse({ ...req.body, createdBy: userId });
-      
+
       // Check if user is member of the family
       const membership = await storage.getUserFamilyMembership(userId, listData.familyId);
       if (!membership) {
         return res.status(403).json({ message: "Access denied" });
       }
-      
+
       const list = await storage.createShoppingList(listData);
       res.json(list);
     } catch (error) {
@@ -449,13 +449,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const familyId = parseInt(req.params.familyId);
       const userId = req.user.claims.sub;
-      
+
       // Check if user is member of this family
       const membership = await storage.getUserFamilyMembership(userId, familyId);
       if (!membership) {
         return res.status(403).json({ message: "Access denied" });
       }
-      
+
       const lists = await storage.getShoppingListsByFamilyId(familyId);
       res.json(lists);
     } catch (error) {
@@ -468,18 +468,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const listId = parseInt(req.params.listId);
       const userId = req.user.claims.sub;
-      
+
       // Check if shopping list exists and user has access
       const list = await storage.getShoppingListById(listId);
       if (!list) {
         return res.status(404).json({ message: "Shopping list not found" });
       }
-      
+
       const membership = await storage.getUserFamilyMembership(userId, list.familyId);
       if (!membership) {
         return res.status(403).json({ message: "Access denied" });
       }
-      
+
       const itemData = insertShoppingListItemSchema.parse({ ...req.body, shoppingListId: listId });
       const item = await storage.addShoppingListItem(itemData);
       res.json(item);
@@ -497,18 +497,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const listId = parseInt(req.params.listId);
       const userId = req.user.claims.sub;
-      
+
       // Check if shopping list exists and user has access
       const list = await storage.getShoppingListById(listId);
       if (!list) {
         return res.status(404).json({ message: "Shopping list not found" });
       }
-      
+
       const membership = await storage.getUserFamilyMembership(userId, list.familyId);
       if (!membership) {
         return res.status(403).json({ message: "Access denied" });
       }
-      
+
       const items = await storage.getShoppingListItems(listId);
       res.json(items);
     } catch (error) {
@@ -522,13 +522,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const orderData = insertRestaurantOrderSchema.parse({ ...req.body, createdBy: userId });
-      
+
       // Check if user is member of the family
       const membership = await storage.getUserFamilyMembership(userId, orderData.familyId);
       if (!membership) {
         return res.status(403).json({ message: "Access denied" });
       }
-      
+
       const order = await storage.createRestaurantOrder(orderData);
       res.json(order);
     } catch (error) {
@@ -545,13 +545,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const familyId = parseInt(req.params.familyId);
       const userId = req.user.claims.sub;
-      
+
       // Check if user is member of this family
       const membership = await storage.getUserFamilyMembership(userId, familyId);
       if (!membership) {
         return res.status(403).json({ message: "Access denied" });
       }
-      
+
       const orders = await storage.getRestaurantOrdersByFamilyId(familyId);
       res.json(orders);
     } catch (error) {
@@ -564,7 +564,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/recipes/scrape-url', async (req, res) => {
     try {
       const { url, familyId } = req.body;
-      
+
       if (!url || !familyId) {
         return res.status(400).json({ message: "URL and familyId are required" });
       }
@@ -572,7 +572,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Import the scraping service
       const { RecipeScrapingService } = await import('./recipeScrapingService');
       const scrapedData = await RecipeScrapingService.scrapeRecipe(url);
-      
+
       // Return scraped data for preview (don't save yet)
       res.json({
         success: true,
@@ -590,14 +590,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/recipes/scrape-video', async (req, res) => {
     try {
       const { url, familyId } = req.body;
-      
+
       if (!url || !familyId) {
         return res.status(400).json({ message: "URL and familyId are required" });
       }
 
       const { RecipeScrapingService } = await import('./recipeScrapingService');
       const scrapedData = await RecipeScrapingService.scrapeFromVideo(url);
-      
+
       res.json({
         success: true,
         data: scrapedData

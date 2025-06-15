@@ -63,19 +63,14 @@ export default function MealCalendar() {
 
   // Get recipes for current family
   const { data: recipes = [] } = useQuery<Recipe[]>({
-    queryKey: ['/api/families', currentFamily?.id, 'recipes'],
+    queryKey: ['/api/recipes'],
     enabled: !!currentFamily?.id,
   });
 
   // Create meal mutation
   const createMealMutation = useMutation({
     mutationFn: async (data: any) => {
-      const response = await fetch(`/api/families/${currentFamily?.id}/meals`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      });
-      if (!response.ok) throw new Error('Failed to create meal');
+      const response = await apiRequest('POST', `/api/families/${currentFamily?.id}/meals`, data);
       return response.json();
     },
     onSuccess: () => {
@@ -86,15 +81,11 @@ export default function MealCalendar() {
   // Seed recipes mutation
   const seedRecipesMutation = useMutation({
     mutationFn: async () => {
-      const response = await fetch(`/api/families/${currentFamily?.id}/seed-recipes`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      });
-      if (!response.ok) throw new Error('Failed to seed recipes');
+      const response = await apiRequest('POST', `/api/families/${currentFamily?.id}/seed-recipes`, {});
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/families', currentFamily?.id, 'recipes'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/recipes'] });
     },
   });
 
@@ -161,16 +152,15 @@ export default function MealCalendar() {
   const handleAcceptRecommendation = (recommendation: RecommendedMeal) => {
     if (!selectedSlot || !currentFamily) return;
 
-    // Create meals for each recipe in the recommendation
-    recommendation.recipes.forEach(recipe => {
-      createMealMutation.mutate({
-        familyId: currentFamily.id,
-        recipeId: recipe.id,
-        mealTypeId: selectedSlot.mealTypeId,
-        scheduledDate: format(selectedSlot.date, 'yyyy-MM-dd'),
-        servings: recommendation.servings,
-        status: 'planned'
-      });
+    // Create a meal for the main recipe (first one in the recommendation)
+    const mainRecipe = recommendation.recipes[0];
+    createMealMutation.mutate({
+      familyId: currentFamily.id,
+      recipeId: mainRecipe.id,
+      mealTypeId: selectedSlot.mealTypeId,
+      scheduledDate: format(selectedSlot.date, 'yyyy-MM-dd'),
+      servings: recommendation.servings,
+      status: 'planned'
     });
 
     setShowRecommendations(false);
@@ -352,13 +342,41 @@ export default function MealCalendar() {
                       <div key={`${day.toISOString()}-${mealType.id}`} className="min-h-[120px] border border-gray-200 rounded-lg p-2">
                         {meal ? (
                           <div className="space-y-2">
-                            <div className="text-sm font-medium text-gray-900">
-                              Recipe #{meal.recipeId}
-                            </div>
-                            <div className="flex items-center space-x-2 text-xs text-gray-500">
-                              <Users className="w-3 h-3" />
-                              <span>{meal.servings}</span>
-                            </div>
+                            {(() => {
+                              const recipe = recipes.find(r => r.id === meal.recipeId);
+                              return recipe ? (
+                                <div className="space-y-2">
+                                  {recipe.imageUrl && (
+                                    <div className="w-full h-16 rounded overflow-hidden">
+                                      <img 
+                                        src={recipe.imageUrl} 
+                                        alt={recipe.name}
+                                        className="w-full h-full object-cover"
+                                      />
+                                    </div>
+                                  )}
+                                  <div className="text-xs font-medium text-gray-900 leading-tight">
+                                    {recipe.name}
+                                  </div>
+                                  <div className="flex items-center justify-between text-xs text-gray-500">
+                                    <div className="flex items-center space-x-1">
+                                      <Users className="w-3 h-3" />
+                                      <span>{meal.servings}</span>
+                                    </div>
+                                    {recipe.prepTime && recipe.cookTime && (
+                                      <div className="flex items-center space-x-1">
+                                        <Clock className="w-3 h-3" />
+                                        <span>{recipe.prepTime + recipe.cookTime}m</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="text-xs font-medium text-gray-900">
+                                  Recipe #{meal.recipeId}
+                                </div>
+                              );
+                            })()}
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                                 <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
