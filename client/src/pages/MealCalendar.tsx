@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useFamily } from "@/contexts/FamilyContext";
 import { Button } from "@/components/ui/button";
@@ -53,7 +53,11 @@ interface RecommendedMeal {
 export default function MealCalendar() {
   const { currentFamily } = useFamily();
   const queryClient = useQueryClient();
-  const [currentWeek, setCurrentWeek] = useState(new Date());
+  // Initialize to show week containing existing meals, or current week if no meals
+  const [currentWeek, setCurrentWeek] = useState(() => {
+    // Default to current week, will be updated when meals load
+    return new Date();
+  });
   const [selectedSlot, setSelectedSlot] = useState<{ date: Date; mealTypeId: number } | null>(null);
   const [showRecommendations, setShowRecommendations] = useState(false);
   const [showPreferences, setShowPreferences] = useState(false);
@@ -86,11 +90,19 @@ export default function MealCalendar() {
     enabled: !!currentFamily?.id,
   });
 
-  // Debug logging
-  console.log('Debug - Current family:', currentFamily);
-  console.log('Debug - Recipes loaded:', recipes.length, recipes);
-  console.log('Debug - Meals loaded:', meals.length, meals);
-  console.log('Debug - Mock meal types:', mockMealTypes);
+  // Auto-navigate to week containing meals when they load
+  useEffect(() => {
+    if (meals.length > 0) {
+      // Find the earliest meal date and navigate to that week
+      const earliestMeal = meals.reduce((earliest, meal) => 
+        meal.scheduledDate < earliest.scheduledDate ? meal : earliest
+      );
+      const mealDate = new Date(earliestMeal.scheduledDate);
+      setCurrentWeek(mealDate);
+    }
+  }, [meals]);
+
+
 
   // Create meal mutation
   const createMealMutation = useMutation({
@@ -216,11 +228,9 @@ export default function MealCalendar() {
 
   const getMealForSlot = (date: Date, mealTypeId: number) => {
     const dateStr = format(date, 'yyyy-MM-dd');
-    const foundMeal = meals.find(meal => 
+    return meals.find(meal => 
       meal.scheduledDate === dateStr && meal.mealTypeId === mealTypeId
     );
-    console.log(`Looking for meal on ${dateStr} for mealType ${mealTypeId}:`, foundMeal);
-    return foundMeal;
   };
 
   const handleAcceptRecommendation = (recommendation: RecommendedMeal) => {
@@ -364,10 +374,6 @@ export default function MealCalendar() {
 
   const weekStart = startOfWeek(currentWeek);
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
-  
-  // Log the current week being displayed
-  console.log('Debug - Current week days:', weekDays.map(d => format(d, 'yyyy-MM-dd')));
-  console.log('Debug - Meal dates in data:', meals.map(m => m.scheduledDate));
 
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
