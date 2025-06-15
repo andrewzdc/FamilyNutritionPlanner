@@ -665,7 +665,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get active challenges
   app.get('/api/challenges/active', async (req, res) => {
     try {
+      console.log('Debug - Fetching active challenges...');
       const challenges = await storage.getActiveChallenges();
+      console.log('Debug - Active challenges found:', challenges.length, challenges);
       res.json(challenges);
     } catch (error) {
       console.error('Error fetching active challenges:', error);

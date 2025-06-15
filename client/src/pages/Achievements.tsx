@@ -24,7 +24,7 @@ export default function Achievements() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  
+
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
 
   // Fetch user achievements
@@ -77,12 +77,12 @@ export default function Achievements() {
   const processedAchievements: AchievementWithProgress[] = allAchievements.map((achievement: Achievement) => {
     const userProgress = userAchievements.find((ua: UserAchievement) => ua.achievementId === achievement.id);
     const isUnlocked = !!userProgress?.isCompleted;
-    
+
     let progressPercentage = 0;
     if (userProgress) {
       progressPercentage = (userProgress.progress / userProgress.maxProgress) * 100;
     }
-    
+
     return {
       ...achievement,
       userProgress,
@@ -296,49 +296,51 @@ export default function Achievements() {
             <Target className="h-6 w-6 text-blue-500" />
             Active Challenges
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {activeChallenges.map((challenge: Challenge) => (
-              <Card key={challenge.id}>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle>{challenge.name}</CardTitle>
-                    <Badge variant="outline" className="capitalize">
-                      {challenge.category}
-                    </Badge>
-                  </div>
-                  <CardDescription>{challenge.description}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex justify-between text-sm">
-                      <span>Duration</span>
-                      <span>
-                        {new Date(challenge.startDate).toLocaleDateString()} - {new Date(challenge.endDate).toLocaleDateString()}
-                      </span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span>Difficulty</span>
-                      <Badge className={getDifficultyColor(challenge.difficulty)}>
-                        {challenge.difficulty}
+          {activeChallenges && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {activeChallenges.map((challenge: Challenge) => (
+                <Card key={challenge.id}>
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <CardTitle>{challenge.name}</CardTitle>
+                      <Badge variant="outline" className="capitalize">
+                        {challenge.category}
                       </Badge>
                     </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-lg font-semibold text-purple-600">
-                        Rewards: {(challenge.rewards as any)?.points || 0} pts
-                      </span>
-                      <Button
-                        onClick={() => joinChallengeMutation.mutate(challenge.id)}
-                        disabled={joinChallengeMutation.isPending}
-                        size="sm"
-                      >
-                        Join Challenge
-                      </Button>
+                    <CardDescription>{challenge.description}</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div className="flex justify-between text-sm">
+                        <span>Duration</span>
+                        <span>
+                          {new Date(challenge.startDate).toLocaleDateString()} - {new Date(challenge.endDate).toLocaleDateString()}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span>Difficulty</span>
+                        <Badge className={getDifficultyColor(challenge.difficulty)}>
+                          {challenge.difficulty}
+                        </Badge>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-lg font-semibold text-purple-600">
+                          Rewards: {(challenge.rewards as any)?.points || 0} pts
+                        </span>
+                        <Button
+                          onClick={() => joinChallengeMutation.mutate(challenge.id)}
+                          disabled={joinChallengeMutation.isPending}
+                          size="sm"
+                        >
+                          Join Challenge
+                        </Button>
+                      </div>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="stats" className="space-y-6">
